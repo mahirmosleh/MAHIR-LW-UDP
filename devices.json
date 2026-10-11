@@ -1,0 +1,54 @@
+{
+    "4682790037": {
+        "unique_device_id": "Google|188c4f25-83fa-4151-b59e-a1f8b5983837",
+        "brand": "Poco",
+        "model": "M2102J20SG",
+        "gpu_renderer": "Adreno (TM) 660",
+        "system_software": "Android OS 13 / API-33",
+        "screen_width": 1080,
+        "screen_height": 1600,
+        "screen_dpi": "311",
+        "memory": 4917,
+        "processor_details": "ARM64 FP ASIMD AES VMH | 2253 | 10",
+        "client_ip": "151.161.68.93"
+    },
+    "ae55031b36aba5058e5e2642a25a6629": {
+        "unique_device_id": "Google|8fe18ea5-dbf7-4d7f-9131-fab269d17708",
+        "brand": "Samsung",
+        "model": "SM-G998B",
+        "gpu_renderer": "Adreno (TM) 660",
+        "system_software": "Android OS 12 / API-31",
+        "screen_width": 1280,
+        "screen_height": 3200,
+        "screen_dpi": "416",
+        "memory": 4559,
+        "processor_details": "ARM64 FP ASIMD AES VMH | 2382 | 12",
+        "client_ip": "122.54.93.215"
+    },
+    "5963082751": {
+        "unique_device_id": "Google|f6b99b3e-a720-4b43-9b09-1d013967aa20",
+        "brand": "Vivo",
+        "model": "V2203",
+        "gpu_renderer": "Mali-G710",
+        "system_software": "Android OS 12 / API-31",
+        "screen_width": 1080,
+        "screen_height": 3200,
+        "screen_dpi": "409",
+        "memory": 5902,
+        "processor_details": "ARM64 FP ASIMD AES VMH | 3176 | 10",
+        "client_ip": "173.103.109.170"
+    },
+    "58e248ed6585837d424b9b08e9a212d4": {
+        "unique_device_id": "Google|6c7c07b7-c4eb-46de-8cc0-e02b7e8a9c7c",
+        "brand": "Samsung",
+        "model": "SM-G998B",
+        "gpu_renderer": "Adreno (TM) 660",
+        "system_software": "Android OS 12 / API-31",
+        "screen_width": 1440,
+        "screen_height": 1600,
+        "screen_dpi": "347",
+        "memory": 3314,
+        "processor_details": "ARM64 FP ASIMD AES VMH | 2756 | 7",
+        "client_ip": "188.156.172.171"
+    }
+}
