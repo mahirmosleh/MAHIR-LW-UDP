@@ -42,11 +42,12 @@ TOKEN_CACHE_FILE = "token_cache.json"
 DEVICES_FILE = "devices.json"
 TOKEN_CACHE_TTL = 1200
 
-# Match control (Only Lone Wolf)
+# Match control
 START_MATCH_INTERVAL = 3.0
 NEW_MATCH_DELAY = 3.0
 MAX_MATCH_DURATION = 700
 MATCH_IDLE_TIMEOUT = 8.0
+MAX_CONCURRENT_MATCHES = 2000000
 PRIORITY_REGIONS = ["BD", "IND", "SG", "TH", "PH", "VN", "MY", "ID", "HK", "TW"]
 
 MAX_CONSECUTIVE_PARSE_FAILURES = 5.0
@@ -55,8 +56,13 @@ NON_MATCH_RECONNECT_DELAY = 1.0
 FALLBACK_UID = ""
 FALLBACK_PASSWORD = ""
 
+# ==================== MODE CONSTANTS ====================
+MODE_LONE_WOLF = "LW"
+MODE_BATTLE_ROYALE = "BR"
+MODE_AUTO = "AUTO"
 
-# ==================== PROTOBUF HELPER FUNCTIONS ====================
+
+# ==================== PROTOBUF HELPERS ====================
 def _pb_varint(n):
     if n < 0:
         n = (1 << 64) + n
@@ -71,10 +77,8 @@ def _pb_varint(n):
             break
     return bytes(out)
 
-
 def _pb_tag(f, w):
     return _pb_varint((f << 3) | w)
-
 
 def _pb_field(f, v):
     if isinstance(v, bool):
@@ -90,7 +94,7 @@ def _pb_field(f, v):
     return b""
 
 
-# ==================== USER MANAGEMENT (WEB LOGIN) ====================
+# ==================== USER MANAGEMENT ====================
 _users_memo: List[Dict] = []
 _users_memo_time: float = 0.0
 _USERS_MEMO_TTL = 5.0
@@ -206,7 +210,7 @@ def get_device_for_account(account_identifier: str) -> dict:
     return new_device
 
 
-# ==================== CLOUDFLARE DNS RESOLVER & SOCKET OPTIMIZERS ====================
+# ==================== CLOUDFLARE DNS ====================
 CLOUDFLARE_PRIMARY_DNS = "1.1.1.1"
 CLOUDFLARE_SECONDARY_DNS = "1.0.0.1"
 _DNS_CACHE: Dict[str, Tuple[str, float]] = {}
@@ -290,8 +294,24 @@ def optimize_tcp_socket(sock: socket.socket):
     try:
         sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 65536)
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 65536)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 131072)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 131072)
+        if hasattr(socket, "SIO_KEEPALIVE_VALS") and os.name == 'nt':
+            try:
+                sock.ioctl(socket.SIO_KEEPALIVE_VALS, (1, 10000, 2000))
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+
+async def safe_close_writer(writer):
+    if not writer:
+        return
+    try:
+        if not writer.is_closing():
+            writer.close()
+        await asyncio.wait_for(writer.wait_closed(), timeout=1.5)
     except Exception:
         pass
 
@@ -313,7 +333,7 @@ def optimize_udp_socket(sock: socket.socket):
 client = httpx.AsyncClient(
     verify=False,
     timeout=15.0,
-    limits=httpx.Limits(max_connections=100, max_keepalive_connections=50)
+    limits=httpx.Limits(max_connections=300, max_keepalive_connections=150)
 )
 
 headers = {
@@ -354,6 +374,7 @@ _DELTA = 0x9E3779B9
 _ROUNDS = 16
 _FIELD_SIZES = {0: 1, 1: 2, 2: 2, 3: 1, 4: 2}
 _FIELD_NAMES = {0: "sendOption", 1: "cmd", 2: "orderId", 3: "flags", 4: "length"}
+
 
 class Colors:
     HEADER = '\033[95m'
@@ -533,11 +554,14 @@ def cache_invalidate(uid: str):
         print_warning(f"[CACHE] Invalidated: {uid}")
 
 
-# ==================== ENCRYPTION & PROTOBUF (UPDATED LOGIN) ====================
-
+# ==================== ENCRYPTION & PROTOBUF ====================
 async def aes_encrypt(payload, key, iv):
     cipher = AES.new(key, AES.MODE_CBC, iv)
     return cipher.encrypt(pad(payload, AES.block_size))
+
+_VERSION_CONFIG_CACHE = None
+_VERSION_CONFIG_CACHE_TIME = 0.0
+_VERSION_CONFIG_TTL = 1800.0
 
 async def get_playstore_version():
     loop = asyncio.get_event_loop()
@@ -551,26 +575,34 @@ async def get_playstore_version():
         return "1.132.8"
 
 async def version_config():
-    app_version = await get_playstore_version()
-    api_url = (
-        "https://version.ggwhitehawk.com/live/ver.php"
-        f"?version={app_version}"
-        "&lang=hi&device=android&channel=android"
-        "&appstore=googleplay&region=ME"
-        "&whitelist_version=1.3.0&whitelist_sp_version=1.0.0"
-    )
+    global _VERSION_CONFIG_CACHE, _VERSION_CONFIG_CACHE_TIME
+    now = time.time()
+    if _VERSION_CONFIG_CACHE and (now - _VERSION_CONFIG_CACHE_TIME) < _VERSION_CONFIG_TTL:
+        return _VERSION_CONFIG_CACHE
+
     try:
-        response = await client.get(api_url)
+        app_version = await get_playstore_version() or "1.132.8"
+        api_url = (
+            "https://version.ggwhitehawk.com/live/ver.php"
+            f"?version={app_version}"
+            "&lang=hi&device=android&channel=android"
+            "&appstore=googleplay&region=BD"
+            "&whitelist_version=1.3.0&whitelist_sp_version=1.0.0"
+        )
+        response = await client.get(api_url, timeout=8.0)
         response.raise_for_status()
         data = response.json()
         server_url = data.get("server_url")
         remote_version = data.get("remote_version")
         latest_release_version = data.get("latest_release_version")
-        if not server_url or not remote_version or not latest_release_version:
-            return None
-        return latest_release_version, remote_version, server_url
+        if server_url and remote_version and latest_release_version:
+            _VERSION_CONFIG_CACHE = (latest_release_version, remote_version, server_url)
+            _VERSION_CONFIG_CACHE_TIME = now
+            return _VERSION_CONFIG_CACHE
     except Exception:
-        return None
+        if _VERSION_CONFIG_CACHE:
+            return _VERSION_CONFIG_CACHE
+    return None
 
 async def get_access_token(uid, password):
     url = "https://100067.connect.garena.com/oauth/guest/token/grant"
@@ -903,7 +935,7 @@ async def send_getlogin(data, base_url, token, release_version):
         print_error(f"send_getlogin error: {e}")
         return None
 
-async def build_tcp_startup_packet(account_id, token, server_time, key, iv, region="ME", typ='OnLine'):
+async def build_tcp_startup_packet(account_id, token, server_time, key, iv, region="BD", typ='OnLine'):
     uid_hex = f"{int(account_id):016x}"
     timestamp_hex = f"{int(server_time):08x}"
     encode_token = token.encode()
@@ -914,17 +946,16 @@ async def build_tcp_startup_packet(account_id, token, server_time, key, iv, regi
     else:
         return f"9015{uid_hex}{timestamp_hex}{encrypted_packet_length}{encrypted_packet}"
 
-async def send_keep_alive(region="ME"):
+async def send_keep_alive(region="BD"):
     try:
-        reg = str(region).upper() if region else "ME"
-        ka_hex = "0219" if reg == "ME" else ("0214" if reg == "IND" else "0215")
+        reg = str(region).upper() if region else "BD"
+        ka_hex = "0219" if reg == "BD" else ("0214" if reg == "IND" else "0215")
         return bytes.fromhex(ka_hex)
     except Exception:
         return bytes.fromhex("0219")
 
 
-# ==================== LONE WOLF MATCH PACKETS ====================
-
+# ==================== LONE WOLF PACKETS ====================
 async def start_game_lone_wolf(region, client_version, writer, key, iv):
     packet = bytes.fromhex("080112800a0a010b102b3a110a044944433110aa011a064555524f50453a100a044944433210311a064555524f504540014a0801090a0b1219202758016291090a8001303838463832424630324139363736373032303130313030303030303030303030303136303030313030313530303032323246393745454530463030303030303436373632353134303030303030303030303030303030303030303030303030303030303030303030303030303066663030303030303030636163666131366410241afb02735d5e571400024a775d45414d1a041b1c001f11010449715f4243481a001e1d071c1703004b1a4066785c524570735c51486775421b5c5a4c07504042685a63610816054e19025e75196001477c015165406370195f5547404e4550640103020f1304064863754268676c755f65576e40467e5f0a417a4701026d675d6e73670b1108495a4c6a0b78470b740065645e525a057258425f584a447d4e6759440c11044e7c596d7f4b625f7d04055a47505c4e1d6b5b4107447d7201057d7f0f14084e430457674f7e517d72015172415d027473577c4d615f79535256780911030f4d5e027a797f614165067806505d53777750475e75064257076500460817014e741e7e5078487e7a7c465e7669767153497064605a7376677773550d160148037e18675966787f4c42607a645f577e7b441b460776026b18685d0b110205490060020f70676175654674706671797f41067346677c4e06585e780f15074c57047b40517075415f6364027259674b5b0166407f7340600407770a22047a5d5c52300b3a0a167305067162727516134208312e3133302e3232480350015ae90403626253513635686e556f4e36416456324b796f566c636f477776484f624e56526c4d727073504b4f43654177616848494176795556497273743752737149734a7a786b3247525268377a2f637664626d504f6a73552f79626d38547a4c69586d2f474351696d494b53486833447955726f39515152756c34545350626d6d624b7949565937545671577059455372323646572f59624578507338514f706d317372785455736c30796a434144444d4f34616a654b615753366361496c554b4963797a494e396d52516f715277687939797257476d337a644345337a6a61436f492f5a585233656f65365a42647a64677654636b6b665733356e4d4c6a6a565072564b6433523172756174394e50514150724a5546627859696c4c5a3859707336654d5447666b6649793574666a526c314d4648706b51774c6373374439656378566c41636f374e664f6d2b30654756466c4434744478706771385533595973587645384842502f70666c767a737138316a32524f4d7857437556445442492f684735625462773166456e4249725162762b636144775147696f74554e316d4c4b77734379456f4766706746614251457645672b736a764c4c78704743334c304a5344532f74526169504354553344374e6249306547516651622f5a466f4c36455630775a324d6f583932414c572f5049752f56634663584e70596b356f7966326151416a536971486a2f363276354843644f525551303578754e6171795251625653704654303137655237675255636b4966366c6f447476342b514e4a4670766d74757077707774396a5a5974437a4b56743657726d6e36785837706658456251555434684f3758a201050803108703a201050804108103a20105080510c001a20105081d10cc01a2010408161078a20105080e10af01a201020815")
     proto = thunderFF_pb2.StartMatch()
@@ -940,12 +971,37 @@ async def start_game_lone_wolf(region, client_version, writer, key, iv):
     packet_length = len(encrypted_packet) // 2
     hex_length = hex(packet_length)[2:]
     hex_length = hex_length if len(hex_length) > 1 else "0" + hex_length
-    reg = str(region).upper() if region else "ME"
-    reg_prefix = "031900" if reg == "ME" else ("031400" if reg == "IND" else "031500")
+    reg = str(region).upper() if region else "BD"
+    reg_prefix = "031900" if reg == "BD" else ("031400" if reg == "IND" else "031500")
     final_packet = reg_prefix + "0" * (6 - len(hex_length)) + hex_length + encrypted_packet
     writer.write(bytes.fromhex(final_packet))
     await writer.drain()
 
+
+# ==================== BATTLE ROYALE PACKETS ====================
+async def start_game_battle_royale(region, client_version, writer, key, iv):
+    packet = bytes.fromhex("080112800a0a010110013a110a044944433110aa011a064555524f50453a100a044944433210311a064555524f504540014a0801090a0b1219202758016291090a8001303838463832424630324139363736373032303130313030303030303030303030303136303030313030313530303032323246393745454530463030303030303436373632353134303030303030303030303030303030303030303030303030303030303030303030303030303066663030303030303030636163666131366410241afb02735d5e571400024a775d45414d1a041b1c001f11010449715f4243481a001e1d071c1703004b1a4066785c524570735c51486775421b5c5a4c07504042685a63610816054e19025e75196001477c015165406370195f5547404e4550640103020f1304064863754268676c755f65576e40467e5f0a417a4701026d675d6e73670b1108495a4c6a0b78470b740065645e525a057258425f584a447d4e6759440c11044e7c596d7f4b625f7d04055a47505c4e1d6b5b4107447d7201057d7f0f14084e430457674f7e517d72015172415d027473577c4d615f79535256780911030f4d5e027a797f614165067806505d53777750475e75064257076500460817014e741e7e5078487e7a7c465e7669767153497064605a7376677773550d160148037e18675966787f4c42607a645f577e7b441b460776026b18685d0b110205490060020f70676175654674706671797f41067346677c4e06585e780f15074c57047b40517075415f6364027259674b5b0166407f7340600407770a22047a5d5c52300b3a0a167305067162727516134208312e3133302e3232480350015ae90403626253513635686e556f4e36416456324b796f566c636f477776484f624e56526c4d727073504b4f43654177616848494176795556497273743752737149734a7a786b3247525268377a2f637664626d504f6a73552f79626d38547a4c69586d2f474351696d494b53486833447955726f39515152756c34545350626d6d624b7949565937545671577059455372323646572f59624578507338514f706d317372785455736c30796a434144444d4f34616a654b615753366361496c554b4963797a494e396d52516f715277687939797257476d337a644345337a6a61436f492f5a585233656f65365a42647a64677654636b6b665733356e4d4c6a6a565072564b6433523172756174394e50514150724a5546627859696c4c5a3859707336654d5447666b6649793574666a526c314d4648706b51774c6373374439656378566c41636f374e664f6d2b30654756466c4434744478706771385533595973587645384842502f70666c767a737138316a32524f4d7857437556445442492f684735625462773166456e4249725162762b636144775147696f74554e316d4c4b77734379456f4766706746614251457645672b736a764c4c78704743334c304a5344532f74526169504354553344374e6249306547516651622f5a466f4c36455630775a324d6f583932414c572f5049752f56634663584e70596b356f7966326151416a536971486a2f363276354843644f525551303578754e6171795251625653704654303137655237675255636b4966366c6f447476342b514e4a4670766d74757077707774396a5a5974437a4b56743657726d6e36785837706658456251555434684f3758a201050803108703a201050804108103a20105080510c001a20105081d10cc01a2010408161078a20105080e10af01a201020815")
+    proto = thunderFF_pb2.StartMatch()
+    proto.ParseFromString(packet)
+    if hasattr(proto.main, 'region_list') and len(proto.main.region_list) > 0:
+        proto.main.region_list[0].region = region
+        if len(proto.main.region_list) > 1:
+            proto.main.region_list[1].region = region
+    if hasattr(proto.main, 'client_version'):
+        proto.main.client_version.remote_version = client_version
+    packet = proto.SerializeToString()
+    encrypted_packet = (await aes_encrypt(packet, key, iv)).hex()
+    packet_length = len(encrypted_packet) // 2
+    hex_length = hex(packet_length)[2:]
+    hex_length = hex_length if len(hex_length) > 1 else "0" + hex_length
+    reg = str(region).upper() if region else "BD"
+    reg_prefix = "031900" if reg == "BD" else ("031400" if reg == "IND" else "031500")
+    final_packet = reg_prefix + "0" * (6 - len(hex_length)) + hex_length + encrypted_packet
+    writer.write(bytes.fromhex(final_packet))
+    await writer.drain()
+
+
+# ==================== TEA & COMMON PACKETS ====================
 async def has_ssan_zig(n):
     z = (n << 1) & 0xFFFFFFFFFFFFFFFF
     out = bytearray()
@@ -1014,6 +1070,29 @@ async def tea_cbc_encrypt(padded, key_bytes):
         prev_intermediate[:] = xored
     return bytes(out)
 
+async def tea_cbc_decrypt(body, key_bytes):
+    k0, k1, k2, k3 = (struct.unpack_from("<I", key_bytes, o)[0] for o in (0, 4, 8, 12))
+    out = bytearray(len(body))
+    prev_intermediate = bytearray(8)
+    prev_cipher = bytearray(8)
+    xored = bytearray(8)
+    dec = bytearray(8)
+    for i in range(0, len(body), 8):
+        for j in range(8):
+            xored[j] = body[i + j] ^ prev_intermediate[j]
+        d0, d1 = await tea_dec(
+            struct.unpack_from("<I", xored, 0)[0],
+            struct.unpack_from("<I", xored, 4)[0],
+            k0, k1, k2, k3
+        )
+        struct.pack_into("<I", dec, 0, d0)
+        struct.pack_into("<I", dec, 4, d1)
+        for j in range(8):
+            out[i + j] = dec[j] ^ prev_cipher[j]
+        prev_cipher[:] = body[i:i + 8]
+        prev_intermediate[:] = dec
+    return bytes(out)
+
 async def build_padded(content):
     pad_len = (8 - (len(content) + 10) % 8) % 8
     return bytes([pad_len, 0, 0]) + b"\x00" * pad_len + content + b"\x00" * 7
@@ -1046,7 +1125,7 @@ async def sv_frame(msg_key, layout, send_option, cmd, order_id, flags, content, 
     return bytes(packet)
 
 async def build_match_startup_packets(token, udp_key, match_code, account_id, block_val,
-                                      server_ip="", region="ME", client_version="1.132.8",
+                                      server_ip="", region="BD", client_version="1.132.8",
                                       client_version_code="2019121229", access_token="",
                                       mode_id=43, map_id=11):
     token = token.strip()
@@ -1060,7 +1139,7 @@ async def build_match_startup_packets(token, udp_key, match_code, account_id, bl
 
     garena420 = await has_ssan_zig(len(encoded_thunder_jwt)) + encoded_thunder_jwt
 
-    reg = str(region).upper() if region else "ME"
+    reg = str(region).upper() if region else "BD"
     csoversea_block = bytes.fromhex(
         "ca0163736f7665727365612e7374726f6e67686f6c642e66726565666972656d6f62696c652e636f6d"
         "3b302e302e302e303b33342e3132362e37362e34353b33342e38372e3137372e31343b33342e38372e"
@@ -1105,29 +1184,6 @@ async def parse_layout(layout):
     if isinstance(layout, str):
         return [int(ch) for ch in layout.strip()]
     return list(layout)
-
-async def tea_cbc_decrypt(body, key_bytes):
-    k0, k1, k2, k3 = (struct.unpack_from("<I", key_bytes, o)[0] for o in (0, 4, 8, 12))
-    out = bytearray(len(body))
-    prev_intermediate = bytearray(8)
-    prev_cipher = bytearray(8)
-    xored = bytearray(8)
-    dec = bytearray(8)
-    for i in range(0, len(body), 8):
-        for j in range(8):
-            xored[j] = body[i + j] ^ prev_intermediate[j]
-        d0, d1 = await tea_dec(
-            struct.unpack_from("<I", xored, 0)[0],
-            struct.unpack_from("<I", xored, 4)[0],
-            k0, k1, k2, k3
-        )
-        struct.pack_into("<I", dec, 0, d0)
-        struct.pack_into("<I", dec, 4, d1)
-        for j in range(8):
-            out[i + j] = dec[j] ^ prev_cipher[j]
-        prev_cipher[:] = body[i:i + 8]
-        prev_intermediate[:] = dec
-    return bytes(out)
 
 async def build_hello_packet(text, key, layout):
     data = text.encode("utf-8")
@@ -1308,6 +1364,10 @@ async def play_game(server_ip_port, thunder, sharma, udp_key, match_code,
 
         loop = asyncio.get_event_loop()
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+            sock.bind(('0.0.0.0', 0))
+        except Exception:
+            pass
         optimize_udp_socket(sock)
         sock.setblocking(False)
 
@@ -1460,8 +1520,18 @@ async def play_game(server_ip_port, thunder, sharma, udp_key, match_code,
         if completed_cleanly:
             try:
                 bot_state.increment_match(uid_str)
+                print(f"Match #{match_index} Complete => {uid_str}")
+
+                async def _post_match_exp_check(uid):
+                    try:
+                        await asyncio.sleep(1.5)
+                        await refresh_account_profile(uid)
+                    except Exception:
+                        pass
+                asyncio.create_task(_post_match_exp_check(uid_str))
             except Exception:
                 pass
+
         ping_stop.set()
         if ping_task:
             ping_task.cancel()
@@ -1486,7 +1556,25 @@ async def play_game(server_ip_port, thunder, sharma, udp_key, match_code,
             pass
 
 
-# ==================== LONE WOLF MAIN LOOP ====================
+# ==================== MODE SELECTION HELPER ====================
+def resolve_effective_mode(account_id: str, requested_mode: str) -> str:
+    """
+    requested_mode: 'LW', 'BR', or 'AUTO'
+    AUTO → level < 3 → BR, level >= 3 → LW
+    """
+    if requested_mode == MODE_LONE_WOLF:
+        return MODE_LONE_WOLF
+    if requested_mode == MODE_BATTLE_ROYALE:
+        return MODE_BATTLE_ROYALE
+    # AUTO
+    try:
+        lvl = bot_state.get_account_level(str(account_id))
+    except Exception:
+        lvl = 1
+    return MODE_BATTLE_ROYALE if lvl < 3 else MODE_LONE_WOLF
+
+
+# ==================== LONE WOLF FUNCTIONAL LOOP ====================
 async def functional_lone_wolf(addrs, starter_packet, account_region, client_version,
                                 key, iv, account_id="", account_data=None,
                                 max_reconnects=10):
@@ -1507,6 +1595,13 @@ async def functional_lone_wolf(addrs, starter_packet, account_region, client_ver
 
     try:
         while True:
+            while bot_state.is_paused(uid_str):
+                try:
+                    bot_state.update_status(uid_str, "PAUSED", 0)
+                except Exception:
+                    pass
+                await asyncio.sleep(1.0)
+
             writer = None
             try:
                 if current_account_data:
@@ -1558,7 +1653,7 @@ async def functional_lone_wolf(addrs, starter_packet, account_region, client_ver
                 except Exception:
                     pass
 
-                print_success(f"[FUNCTIONAL] TCP Gateway Connected for UID: {uid_str} (DNS: {resolved_ip})")
+                print_success(f"[FUNCTIONAL-LW] TCP Gateway Connected for UID: {uid_str} (DNS: {resolved_ip})")
                 reconnects = 0
                 no_response_count = 0
                 last_start_time = 0.0
@@ -1566,7 +1661,7 @@ async def functional_lone_wolf(addrs, starter_packet, account_region, client_ver
                 async def send_start_match():
                     nonlocal search_attempts, last_start_time
                     search_attempts += 1
-                    current_region = "ME"
+                    current_region = "BD"
                     print_info(f"[LONE WOLF] Sending StartMatch #{search_attempts} region: {current_region}")
                     try:
                         await asyncio.sleep(random.uniform(0.3, 0.6))
@@ -1577,7 +1672,7 @@ async def functional_lone_wolf(addrs, starter_packet, account_region, client_ver
                         print_success("[LONE WOLF] StartMatch packet sent")
                         active = await _get_match_count(uid_str)
                         try:
-                            bot_state.update_status(uid_str, "SEARCHING", active)
+                            bot_state.update_status(uid_str, "SEARCHING (LW)", active)
                         except Exception:
                             pass
                     except Exception as e:
@@ -1589,11 +1684,22 @@ async def functional_lone_wolf(addrs, starter_packet, account_region, client_ver
                 while True:
                     play_matches[:] = [m for m in play_matches if not m.done()]
 
+                    if bot_state.is_paused(uid_str):
+                        try:
+                            bot_state.update_status(uid_str, "PAUSED", 0)
+                        except Exception:
+                            pass
+                        await safe_close_writer(writer)
+                        writer = None
+                        while bot_state.is_paused(uid_str):
+                            await asyncio.sleep(1.0)
+                        break
+
                     active_count = await _get_match_count(uid_str)
                     try:
                         bot_state.update_status(
                             uid_str,
-                            "ONLINE" if active_count == 0 else "IN_MATCH",
+                            "IN_MATCH (LW)" if active_count > 0 else "ONLINE (LW)",
                             active_count
                         )
                     except Exception:
@@ -1620,12 +1726,11 @@ async def functional_lone_wolf(addrs, starter_packet, account_region, client_ver
                     no_response_count = 0
 
                     if hex_data.startswith("0300") and 10 < packet_length < 30:
-                        print_info("Match starting, please wait...")
                         continue
 
                     if hex_data.startswith("0300") and packet_length >= 300:
                         print_colored("=" * 60, Colors.GREEN)
-                        print_colored("MATCH FOUND! Loading...", Colors.GREEN)
+                        print_colored("LW MATCH FOUND! Loading...", Colors.GREEN)
                         print_colored("=" * 60, Colors.GREEN)
 
                         try:
@@ -1670,12 +1775,8 @@ async def functional_lone_wolf(addrs, starter_packet, account_region, client_ver
                                 match_index = await _inc_match(uid_str)
                                 total = await _get_total_match_count()
                                 print_colored(
-                                    f"🚀 [MATCH #{match_index}] UDP starting → {server_ip_port} (background)",
+                                    f"🚀 [MATCH #{match_index}] UDP starting → {server_ip_port}",
                                     Colors.CYAN
-                                )
-                                print_success(
-                                    f"[FUNCTIONAL] UDP task started. "
-                                    f"UID active: {match_index} | Total: {total}"
                                 )
 
                                 new_match = asyncio.create_task(
@@ -1686,7 +1787,7 @@ async def functional_lone_wolf(addrs, starter_packet, account_region, client_ver
                                         udp_key,
                                         match_code,
                                         effective_acc_id,
-                                        "ME",
+                                        "BD",
                                         client_version,
                                         current_key,
                                         current_iv,
@@ -1703,10 +1804,6 @@ async def functional_lone_wolf(addrs, starter_packet, account_region, client_ver
                                 except Exception:
                                     pass
 
-                                print_info(
-                                    f"[OFFLINE] {NEW_MATCH_DELAY}s offline → "
-                                    f"reload token → new StartMatch"
-                                )
                                 await asyncio.sleep(NEW_MATCH_DELAY)
                                 reconnects = 0
                                 break
@@ -1715,15 +1812,10 @@ async def functional_lone_wolf(addrs, starter_packet, account_region, client_ver
                                 consecutive_parse_failures += 1
                                 print_warning(
                                     f"[FUNCTIONAL] Non-match big packet "
-                                    f"(#{consecutive_parse_failures}/{MAX_CONSECUTIVE_PARSE_FAILURES}) "
-                                    f"→ reconnecting"
+                                    f"(#{consecutive_parse_failures}/{MAX_CONSECUTIVE_PARSE_FAILURES})"
                                 )
 
                                 if consecutive_parse_failures >= MAX_CONSECUTIVE_PARSE_FAILURES:
-                                    print_error(
-                                        f"[FUNCTIONAL] {MAX_CONSECUTIVE_PARSE_FAILURES}x parse failures "
-                                        f"→ invalidating cache for fresh login"
-                                    )
                                     if current_account_data:
                                         try:
                                             if current_account_data.get('auth_uid'):
@@ -1767,7 +1859,7 @@ async def functional_lone_wolf(addrs, starter_packet, account_region, client_ver
                         continue
 
             except asyncio.CancelledError:
-                print_warning(f"[FUNCTIONAL] Cancelled — cancelling {len(play_matches)} UDP matches")
+                print_warning(f"[FUNCTIONAL-LW] Cancelled — cancelling {len(play_matches)} UDP matches")
                 for m in play_matches:
                     if not m.done():
                         m.cancel()
@@ -1776,7 +1868,7 @@ async def functional_lone_wolf(addrs, starter_packet, account_region, client_ver
                 play_matches.clear()
                 raise
             except Exception as e:
-                print_error(f"[FUNCTIONAL] TCP state ({uid_str}): {e}")
+                print_error(f"[FUNCTIONAL-LW] TCP state ({uid_str}): {e}")
 
                 play_matches[:] = [m for m in play_matches if not m.done()]
 
@@ -1801,7 +1893,7 @@ async def functional_lone_wolf(addrs, starter_packet, account_region, client_ver
                 await asyncio.sleep(min(reconnects, 2))
 
     except asyncio.CancelledError:
-        print_warning(f"[FUNCTIONAL] Outer cancelled. {len(play_matches)} UDP matches still running.")
+        print_warning(f"[FUNCTIONAL-LW] Outer cancelled. {len(play_matches)} UDP matches still running.")
         for m in play_matches:
             if not m.done():
                 m.cancel()
@@ -1811,15 +1903,414 @@ async def functional_lone_wolf(addrs, starter_packet, account_region, client_ver
         raise
 
 
-async def informational(addrs, starter_packet, key, iv, region="ME", max_reconnects=3):
+# ==================== BATTLE ROYALE FUNCTIONAL LOOP ====================
+async def functional_battle_royale(addrs, starter_packet, account_region, client_version,
+                                   key, iv, account_id="", account_data=None,
+                                   max_reconnects=10):
+    reconnects = 0
+    ip, port = addrs.split(":")
+    play_matches: List[asyncio.Task] = []
+    no_response_count = 0
+    search_attempts = 0
+    last_start_time = 0.0
+    uid_str = str(account_id)
+    tcp_printed = False
+
+    current_token = starter_packet
+    current_key = key
+    current_iv = iv
+    current_account_data = account_data
+
+    try:
+        while True:
+            while bot_state.is_paused(uid_str):
+                try:
+                    bot_state.update_status(uid_str, "PAUSED", 0)
+                except Exception:
+                    pass
+                await asyncio.sleep(1.0)
+
+            writer = None
+            reader = None
+            gateway_ping_task = None
+
+            try:
+                if current_account_data:
+                    fresh = None
+                    if current_account_data.get('auth_type') == 'guest' and current_account_data.get('auth_uid'):
+                        fresh = cache_get(str(current_account_data['auth_uid']))
+                    elif current_account_data.get('auth_type') == 'token' and current_account_data.get('auth_token'):
+                        fresh = cache_get(f"tok_{current_account_data['auth_token'][:20]}")
+
+                    if fresh:
+                        current_account_data = fresh
+                        current_key = fresh['aes_ak']
+                        current_iv = fresh['iv_i']
+                        current_token = await build_tcp_startup_packet(
+                            fresh['account_id'],
+                            fresh['token'],
+                            fresh['server_time'],
+                            current_key,
+                            current_iv,
+                            region=fresh.get('region', account_region),
+                            typ='OnLine'
+                        )
+                    else:
+                        try:
+                            if current_account_data.get('auth_uid'):
+                                cache_invalidate(str(current_account_data['auth_uid']))
+                            if current_account_data.get('auth_token'):
+                                cache_invalidate(f"tok_{current_account_data['auth_token'][:20]}")
+                        except Exception:
+                            pass
+                        raise ConnectionError("Cache expired, triggering fresh login")
+
+                resolved_ip = await resolve_host_cloudflare(ip)
+                reader, writer = await asyncio.open_connection(resolved_ip, int(port))
+                bot_state.register_writer(uid_str, writer)
+
+                raw_sock = writer.get_extra_info('socket')
+                if raw_sock:
+                    optimize_tcp_socket(raw_sock)
+
+                writer.write(bytes.fromhex(current_token))
+                await writer.drain()
+
+                try:
+                    init_ka = await send_keep_alive(account_region)
+                    if init_ka and writer and not writer.is_closing():
+                        writer.write(init_ka)
+                        await asyncio.wait_for(writer.drain(), timeout=3)
+                except Exception:
+                    pass
+
+                async def func_gateway_keepalive():
+                    ka_bytes = await send_keep_alive(account_region)
+                    while True:
+                        await asyncio.sleep(5)
+                        try:
+                            if writer and not writer.is_closing():
+                                writer.write(ka_bytes)
+                                await writer.drain()
+                        except Exception:
+                            break
+
+                gateway_ping_task = asyncio.create_task(func_gateway_keepalive())
+
+                if not tcp_printed:
+                    print_success(f"[FUNCTIONAL-BR] TCP Gateway Connected for UID: {uid_str} (DNS: {resolved_ip})")
+                    tcp_printed = True
+
+                reconnects = 0
+                no_response_count = 0
+                last_start_time = 0.0
+
+                async def send_start_match():
+                    nonlocal search_attempts, last_start_time
+                    search_attempts += 1
+                    current_region = "BD"
+                    print_info(f"[BR] Sending StartMatch #{search_attempts} region: {current_region}")
+                    try:
+                        await asyncio.sleep(random.uniform(0.2, 0.4))
+                        await start_game_battle_royale(
+                            current_region, client_version, writer,
+                            current_key, current_iv
+                        )
+                        print_success("[BR] StartMatch packet sent")
+                        active = await _get_match_count(uid_str)
+                        try:
+                            bot_state.update_status(uid_str, "SEARCHING (BR)", active)
+                        except Exception:
+                            pass
+                    except Exception as e:
+                        print_error(f"start_game_battle_royale error: {e}")
+                    last_start_time = asyncio.get_running_loop().time()
+
+                await send_start_match()
+
+                while True:
+                    play_matches[:] = [m for m in play_matches if not m.done()]
+
+                    if bot_state.is_paused(uid_str):
+                        try:
+                            bot_state.update_status(uid_str, "PAUSED", 0)
+                        except Exception:
+                            pass
+                        bot_state.unregister_writer(uid_str, writer)
+                        if gateway_ping_task:
+                            gateway_ping_task.cancel()
+                        await safe_close_writer(writer)
+                        writer = None
+                        reader = None
+                        while bot_state.is_paused(uid_str):
+                            await asyncio.sleep(1.0)
+                        break
+
+                    active_count = await _get_match_count(uid_str)
+                    try:
+                        bot_state.update_status(
+                            uid_str,
+                            "IN_MATCH (BR)" if active_count > 0 else "ONLINE (BR)",
+                            active_count
+                        )
+                    except Exception:
+                        pass
+
+                    now = asyncio.get_running_loop().time()
+                    if now - last_start_time >= START_MATCH_INTERVAL:
+                        await send_start_match()
+
+                    try:
+                        data = await asyncio.wait_for(reader.read(8192), timeout=0.5)
+                    except asyncio.TimeoutError:
+                        no_response_count += 1
+                        if no_response_count > 80:
+                            print_warning(f"[FUNCTIONAL-BR] Gateway silent ({uid_str}). Reconnecting...")
+                            raise ConnectionError("Gateway idle timeout")
+                        continue
+
+                    if not data:
+                        raise ConnectionError("Connection closed by server")
+
+                    hex_data = data.hex()
+                    packet_length = len(data)
+                    no_response_count = 0
+
+                    if hex_data.startswith("0300") and 10 < packet_length < 30:
+                        continue
+
+                    if hex_data.startswith("0300") and packet_length >= 300:
+                        print_colored("=" * 60, Colors.GREEN)
+                        print_colored("BR MATCH FOUND! Loading...", Colors.GREEN)
+                        print_colored("=" * 60, Colors.GREEN)
+
+                        try:
+                            res = json.loads(await decode_protobuf(hex_data[10:]))
+                            token = None
+                            udp_key = None
+                            match_code = None
+                            server_ip_port = None
+                            match_account_id = None
+                            block_val = None
+
+                            if '42' in res and 'data' in res['42']:
+                                match_code = res['42']['data']
+                            if '5' in res and 'data' in res['5']:
+                                res_field5 = res['5']['data']
+                                server_ip_port = res_field5.get('2', {}).get('data')
+                                udp_key = res_field5.get('3', {}).get('data')
+                                token = res_field5.get('4', {}).get('data')
+                                if '42' in res_field5:
+                                    match_code = res_field5['42']['data']
+                            if '1' in res and 'data' in res['1']:
+                                match_account_id = res['1']['data']
+                            if '5' in res and 'data' in res['5']:
+                                block_val = res['5']['data'].get('1', {}).get('data')
+
+                            effective_acc_id = match_account_id or account_id or "BD_BOT"
+
+                            if token and udp_key and match_code and server_ip_port:
+                                acc_tok = ""
+                                if current_account_data:
+                                    acc_tok = current_account_data.get('access_token', '') or ""
+                                thunder, sharma = await build_match_startup_packets(
+                                    token, udp_key, match_code, effective_acc_id, block_val or 0,
+                                    server_ip=server_ip_port,
+                                    region=account_region,
+                                    client_version=client_version,
+                                    access_token=acc_tok,
+                                    mode_id=1,
+                                    map_id=1
+                                )
+
+                                match_index = await _inc_match(uid_str)
+                                total = await _get_total_match_count()
+                                print_colored(
+                                    f"🚀 [BR MATCH #{match_index}] UDP starting → {server_ip_port}",
+                                    Colors.CYAN
+                                )
+
+                                new_match = asyncio.create_task(
+                                    play_game(
+                                        server_ip_port,
+                                        thunder,
+                                        sharma,
+                                        udp_key,
+                                        match_code,
+                                        effective_acc_id,
+                                        "BD",
+                                        client_version,
+                                        current_key,
+                                        current_iv,
+                                        match_index=match_index
+                                    )
+                                )
+                                play_matches.append(new_match)
+
+                                if gateway_ping_task:
+                                    gateway_ping_task.cancel()
+                                bot_state.unregister_writer(uid_str, writer)
+                                await safe_close_writer(writer)
+                                writer = None
+                                reader = None
+
+                                await asyncio.sleep(NEW_MATCH_DELAY)
+                                reconnects = 0
+                                break
+
+                            else:
+                                continue
+
+                        except Exception as e:
+                            print_error(f"[FUNCTIONAL-BR] Match packet error: {e}")
+                            try:
+                                if gateway_ping_task:
+                                    gateway_ping_task.cancel()
+                                await safe_close_writer(writer)
+                            except Exception:
+                                pass
+                            writer = None
+                            reader = None
+                            await asyncio.sleep(NON_MATCH_RECONNECT_DELAY)
+                            break
+
+                    if 30 <= packet_length <= 40:
+                        continue
+
+            except asyncio.CancelledError:
+                if gateway_ping_task:
+                    gateway_ping_task.cancel()
+                if writer:
+                    bot_state.unregister_writer(uid_str, writer)
+                raise
+            except Exception as e:
+                print_error(f"[FUNCTIONAL-BR] TCP state ({uid_str}): {e}")
+                if gateway_ping_task:
+                    gateway_ping_task.cancel()
+                if writer:
+                    bot_state.unregister_writer(uid_str, writer)
+                play_matches[:] = [m for m in play_matches if not m.done()]
+                await safe_close_writer(writer)
+                writer = None
+                reader = None
+
+                if "Cache expired" in str(e):
+                    print_warning(f"[FUNCTIONAL-BR] Triggering re-login for {uid_str}")
+                    break
+
+                reconnects += 1
+                if reconnects > max_reconnects:
+                    print_error("[FUNCTIONAL-BR] Max reconnects reached, retrying...")
+                    reconnects = 0
+                    await asyncio.sleep(3)
+                    continue
+                    await asyncio.sleep(min(reconnects, 2))
+            finally:
+                if gateway_ping_task:
+                    gateway_ping_task.cancel()
+                if writer:
+                    bot_state.unregister_writer(uid_str, writer)
+                    await safe_close_writer(writer)
+
+    except asyncio.CancelledError:
+        print_warning(f"[FUNCTIONAL-BR] Outer cancelled. {len(play_matches)} UDP matches still running.")
+        for m in play_matches:
+            if not m.done():
+                m.cancel()
+        if play_matches:
+            await asyncio.gather(*play_matches, return_exceptions=True)
+        play_matches.clear()
+        raise
+
+
+# ==================== AUTO MODE ORCHESTRATOR ====================
+async def functional_auto(addrs, starter_packet, account_region, client_version,
+                          key, iv, account_id="", account_data=None,
+                          max_reconnects=10):
+    """
+    Auto mode: continuously checks account level.
+    - Level < 3  → Battle Royale
+    - Level >= 3 → Lone Wolf
+    Switches automatically when level up detected.
+    """
+    uid_str = str(account_id)
+    print_info(f"[AUTO] Starting AUTO mode for UID {uid_str}")
+
+    while True:
+        try:
+            current_level = bot_state.get_account_level(uid_str)
+            mode = MODE_BATTLE_ROYALE if current_level < 3 else MODE_LONE_WOLF
+            print_success(
+                f"[AUTO] UID {uid_str} | Level {current_level} → Mode: {mode}"
+            )
+
+            if mode == MODE_BATTLE_ROYALE:
+                task = asyncio.create_task(
+                    functional_battle_royale(
+                        addrs, starter_packet, account_region, client_version,
+                        key, iv, account_id=account_id, account_data=account_data,
+                        max_reconnects=max_reconnects
+                    )
+                )
+            else:
+                task = asyncio.create_task(
+                    functional_lone_wolf(
+                        addrs, starter_packet, account_region, client_version,
+                        key, iv, account_id=account_id, account_data=account_data,
+                        max_reconnects=max_reconnects
+                    )
+                )
+
+            # Monitor level every 30 seconds; if it crosses 3, restart with new mode
+            while not task.done():
+                await asyncio.sleep(30)
+                try:
+                    new_level = bot_state.get_account_level(uid_str)
+                except Exception:
+                    new_level = current_level
+
+                new_mode = MODE_BATTLE_ROYALE if new_level < 3 else MODE_LONE_WOLF
+                if new_mode != mode:
+                    print_success(
+                        f"[AUTO] 🎉 UID {uid_str} LEVEL UP → {current_level} → {new_level}! "
+                        f"Switching {mode} → {new_mode}"
+                    )
+                    task.cancel()
+                    try:
+                        await task
+                    except (asyncio.CancelledError, Exception):
+                        pass
+                    break
+
+            if task.done() and not task.cancelled():
+                try:
+                    await task
+                except Exception:
+                    pass
+
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            print_error(f"[AUTO] error for {uid_str}: {e}")
+            await asyncio.sleep(5)
+
+
+# ==================== INFORMATIONAL CHANNEL ====================
+async def informational(addrs, starter_packet, key, iv, region="BD", account_id="", max_reconnects=3):
+    uid_str = str(account_id)
     reconnects = 0
     ip, port = addrs.split(":")
     while True:
+        while uid_str and bot_state.is_paused(uid_str):
+            await asyncio.sleep(1.0)
+
         writer = None
         ping_task = None
         try:
             resolved_ip = await resolve_host_cloudflare(ip)
             reader, writer = await asyncio.open_connection(resolved_ip, int(port))
+            if uid_str:
+                bot_state.register_writer(uid_str, writer)
 
             raw_sock = writer.get_extra_info('socket')
             if raw_sock:
@@ -1851,28 +2342,37 @@ async def informational(addrs, starter_packet, key, iv, region="ME", max_reconne
             ping_task = asyncio.create_task(info_keepalive())
 
             while True:
-                data = await reader.read(8192)
+                if uid_str and bot_state.is_paused(uid_str):
+                    if ping_task:
+                        ping_task.cancel()
+                    if uid_str:
+                        bot_state.unregister_writer(uid_str, writer)
+                    await safe_close_writer(writer)
+                    writer = None
+                    while bot_state.is_paused(uid_str):
+                        await asyncio.sleep(1.0)
+                    break
+
+                try:
+                    data = await asyncio.wait_for(reader.read(8192), timeout=1.0)
+                except asyncio.TimeoutError:
+                    continue
+
                 if not data:
                     raise ConnectionError("Connection closed")
         except asyncio.CancelledError:
             if ping_task:
                 ping_task.cancel()
-            if writer:
-                try:
-                    writer.close()
-                    await writer.wait_closed()
-                except Exception:
-                    pass
+            if uid_str:
+                bot_state.unregister_writer(uid_str, writer)
+            await safe_close_writer(writer)
             raise
         except Exception:
             if ping_task:
                 ping_task.cancel()
-            if writer:
-                try:
-                    writer.close()
-                    await writer.wait_closed()
-                except Exception:
-                    pass
+            if uid_str:
+                bot_state.unregister_writer(uid_str, writer)
+            await safe_close_writer(writer)
             reconnects += 1
             if reconnects > max_reconnects:
                 await asyncio.sleep(3)
@@ -1882,7 +2382,6 @@ async def informational(addrs, starter_packet, key, iv, region="ME", max_reconne
 
 
 # ==================== ACCOUNT PROCESSORS ====================
-
 def _register_credentials(account_data: Dict):
     try:
         acc_id = str(account_data['account_id'])
@@ -1943,7 +2442,7 @@ async def process_account_uid_pass(uid: str, password: str) -> Optional[Dict]:
         bot_state.register_account(
             uid=acc_id,
             nickname=cached.get('nickname', f"Player_{acc_id}"),
-            region=cached.get('region', 'ME'),
+            region=cached.get('region', 'BD'),
             level=cached.get('level', 1),
             exp=cached.get('exp', 0),
             likes=cached.get('likes', 0)
@@ -1983,7 +2482,7 @@ async def process_account_uid_pass(uid: str, password: str) -> Optional[Dict]:
         exp = int(get_proto_field(dict_res, 7, 0))
         likes = int(get_proto_field(dict_res, 8, 0))
         nickname = res_proto.nickname or get_proto_field(dict_res, 4, f"Player_{acc_id}")
-        region = majorlogin_response.region or get_proto_field(dict_res, 3, "ME")
+        region = majorlogin_response.region or get_proto_field(dict_res, 3, "BD")
 
         func_addr = res_proto.functional_addrs
         info_addr = res_proto.informational_addrs
@@ -2043,7 +2542,7 @@ async def process_account_token(access_token: str) -> Optional[Dict]:
         bot_state.register_account(
             uid=acc_id,
             nickname=cached.get('nickname', f"Player_{acc_id}"),
-            region=cached.get('region', 'ME'),
+            region=cached.get('region', 'BD'),
             level=cached.get('level', 1),
             exp=cached.get('exp', 0),
             likes=cached.get('likes', 0)
@@ -2103,7 +2602,7 @@ async def process_account_token(access_token: str) -> Optional[Dict]:
         exp = int(get_proto_field(dict_res, 7, 0))
         likes = int(get_proto_field(dict_res, 8, 0))
         nickname = res_proto.nickname or get_proto_field(dict_res, 4, f"Player_{acc_id}")
-        region = majorlogin_response.region or get_proto_field(dict_res, 3, "ME")
+        region = majorlogin_response.region or get_proto_field(dict_res, 3, "BD")
 
         key_val = majorlogin_response.aes_ak
         iv_val = majorlogin_response.iv_i
@@ -2151,7 +2650,7 @@ async def run_account_worker(account_data: Dict, label: str):
     exp_task = None
     functional_task = None
     try:
-        reg = account_data.get('region', 'ME')
+        reg = account_data.get('region', 'BD')
         func_addr = account_data.get('functional_addrs')
         info_addr = account_data.get('informational_addrs')
 
@@ -2188,7 +2687,8 @@ async def run_account_worker(account_data: Dict, label: str):
                     tcp_packet_chat,
                     account_data['aes_ak'],
                     account_data['iv_i'],
-                    region=reg
+                    region=reg,
+                    account_id=acc_id
                 )
             )
 
@@ -2201,18 +2701,49 @@ async def run_account_worker(account_data: Dict, label: str):
 
         exp_task = asyncio.create_task(exp_refresher())
 
-        functional_task = asyncio.create_task(
-            functional_lone_wolf(
-                func_addr,
-                tcp_packet_online,
-                account_data['region'],
-                account_data['client_version'],
-                account_data['aes_ak'],
-                account_data['iv_i'],
-                account_id=acc_id,
-                account_data=account_data
+        # ---- MODE DISPATCH (from account_data / bot_state) ----
+        requested_mode = bot_state.get_account_mode_preference(acc_id)
+        print_info(f"[WORKER] UID {acc_id} requested mode: {requested_mode}")
+
+        if requested_mode == MODE_LONE_WOLF:
+            functional_task = asyncio.create_task(
+                functional_lone_wolf(
+                    func_addr,
+                    tcp_packet_online,
+                    account_data['region'],
+                    account_data['client_version'],
+                    account_data['aes_ak'],
+                    account_data['iv_i'],
+                    account_id=acc_id,
+                    account_data=account_data
+                )
             )
-        )
+        elif requested_mode == MODE_BATTLE_ROYALE:
+            functional_task = asyncio.create_task(
+                functional_battle_royale(
+                    func_addr,
+                    tcp_packet_online,
+                    account_data['region'],
+                    account_data['client_version'],
+                    account_data['aes_ak'],
+                    account_data['iv_i'],
+                    account_id=acc_id,
+                    account_data=account_data
+                )
+            )
+        else:  # AUTO
+            functional_task = asyncio.create_task(
+                functional_auto(
+                    func_addr,
+                    tcp_packet_online,
+                    account_data['region'],
+                    account_data['client_version'],
+                    account_data['aes_ak'],
+                    account_data['iv_i'],
+                    account_id=acc_id,
+                    account_data=account_data
+                )
+            )
 
         await functional_task
 
@@ -2289,7 +2820,6 @@ async def account_loop_token(token: str):
 
 
 # ==================== ACCOUNTS LOADER ====================
-
 def load_accounts():
     accounts = []
     if os.path.exists(ACCOUNTS_FILE):
@@ -2308,21 +2838,15 @@ def load_accounts():
 
 
 # ==================== MAIN ====================
-
 async def main():
     print_colored("=" * 60, Colors.CYAN)
-    print_colored("    MAHIR - FreeFire Level Up Bot (Lone Wolf Only)", Colors.GREEN)
-    print_colored("   Fixed Login System + Lone Wolf Auto Match", Colors.WHITE)
+    print_colored("    MAHIR - FreeFire Level Up Bot (Auto Mode)", Colors.GREEN)
+    print_colored("   LW / BR / AUTO selectable from Web Dashboard", Colors.WHITE)
     print_colored("=" * 60, Colors.CYAN)
     print_info(f"Web Port: {WEB_PORT}")
     print_info(f"Start Match Interval: {START_MATCH_INTERVAL}s")
-    print_info(f"Offline Wait: {NEW_MATCH_DELAY}s (after match found)")
-    print_info(f"Non-match Reconnect: {NON_MATCH_RECONNECT_DELAY}s")
-    print_info(f"Cache Invalidation Threshold: {MAX_CONSECUTIVE_PARSE_FAILURES}x")
-    print_info(f"Cache TTL: {TOKEN_CACHE_TTL}s ({TOKEN_CACHE_TTL//60} min)")
-    print_info(f"Priority Regions: {PRIORITY_REGIONS}")
-    print_info("Device System: 1 ID = 1 Persistent Device ID (devices.json)")
-    print_info(f"Users File: {USERS_FILE}")
+    print_info(f"Offline Wait: {NEW_MATCH_DELAY}s")
+    print_info(f"Mode Selection: LW / BR / AUTO")
     print_colored("=" * 60, Colors.CYAN)
 
     try:
@@ -2345,8 +2869,30 @@ async def main():
     async def on_refresh_account_handler(uid):
         await refresh_account_profile(uid)
 
+    async def on_set_mode_handler(uid, mode):
+        """Called from dashboard when user selects LW/BR/AUTO"""
+        print_info(f"[MODE] UID {uid} → {mode}")
+        bot_state.set_account_mode_preference(uid, mode)
+        # Cancel existing worker & restart
+        uid_str = str(uid)
+        if uid_str in bot_state.account_workers:
+            try:
+                bot_state.account_workers[uid_str].cancel()
+            except Exception:
+                pass
+            bot_state.account_workers.pop(uid_str, None)
+
+        accounts = load_accounts()
+        for acc in accounts:
+            if str(acc.get("uid", "")) == uid_str and acc.get("password"):
+                t = asyncio.create_task(account_loop_guest(uid_str, acc["password"]))
+                bot_state.account_workers[uid_str] = t
+                print_success(f"[MODE] Restarted {uid_str} in {mode} mode")
+                break
+
     bot_state.refresh_callbacks["on_account_added"] = on_account_added_handler
     bot_state.refresh_callbacks["on_refresh_account"] = on_refresh_account_handler
+    bot_state.refresh_callbacks["on_set_mode"] = on_set_mode_handler
 
     accounts = load_accounts()
 
