@@ -60,15 +60,13 @@
         .seal-text { display: flex; flex-direction: column; gap: 1px; }
         .seal-text .label { font-family: 'DM Mono', monospace; font-size: 8.5px; letter-spacing: 2px; text-transform: uppercase; color: var(--ink-mute); font-weight: 500; }
         .seal-text .name { font-family: 'Fraunces', serif; font-size: 16px; font-weight: 700; letter-spacing: 0.5px; color: var(--plum); font-style: italic; }
-        .hero-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+        .hero-actions { display: flex; gap: 10px; }
 
         .btn { display: inline-flex; align-items: center; gap: 9px; padding: 12px 22px; font-size: 12.5px; font-weight: 600; letter-spacing: 0.6px; text-transform: uppercase; font-family: 'DM Sans', sans-serif; cursor: pointer; border-radius: 100px; transition: all 0.25s ease; border: 1px solid transparent; text-decoration: none; }
         .btn-ghost { background: transparent; border-color: var(--line); color: var(--plum); }
         .btn-ghost:hover { border-color: var(--plum); background: var(--paper); }
         .btn-solid { background: var(--plum); color: var(--cream); box-shadow: 0 8px 24px -8px rgba(43, 22, 34, 0.5); }
         .btn-solid:hover { background: var(--wine); transform: translateY(-2px); box-shadow: 0 12px 32px -8px rgba(92, 26, 46, 0.6); }
-        .btn-danger { background: var(--terra); color: #fff; }
-        .btn-danger:hover { background: #a34227; }
 
         /* SOCIAL BAR */
         .social-bar { display: flex; gap: 10px; flex-wrap: wrap; }
@@ -175,9 +173,6 @@
         .modal-foot { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; padding-top: 22px; border-top: 1px solid var(--line); }
         .modal-foot .btn { padding: 11px 22px; }
 
-        /* AUTO MANAGER BADGE */
-        .auto-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 100px; background: var(--sage); color: white; font-size: 10px; font-weight: 700; margin-left: 10px; animation: dot-pulse 2s infinite; }
-        
         /* DETAIL MODAL STYLES */
         .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
         .detail-item { background: var(--cream); padding: 12px 16px; border-radius: 4px; border: 1px solid var(--line); }
@@ -224,7 +219,7 @@
             .stat { padding: 20px 0 !important; border-right: none; border-bottom: 1px solid var(--line); }
             .stat:last-child { border-bottom: none; }
             .hero-actions { flex-direction: column; width: 100%; }
-            .btn { justify-content: center; width: 100%; }
+            .btn { justify-content: center; }
             .footer-top { grid-template-columns: 1fr; }
             .detail-grid { grid-template-columns: 1fr; }
         }
@@ -250,7 +245,7 @@
         <header class="hero">
             <div class="hero-left">
                 <div class="eyebrow">Level Up Bot · Edition 2.0</div>
-                <h1>MAHIR<br><em>Level Up Bot</em> <span id="auto-active-badge" class="auto-badge" style="display:none">AUTO ON</span></h1>
+                <h1>MAHIR<br><em>Level Up Bot</em></h1>
                 <p class="hero-sub">
                     A refined dashboard for monitoring live accounts, tracking EXP gains, and orchestrating matches — <span class="hl">engineered with care</span> by MAHIR.
                 </p>
@@ -275,7 +270,6 @@
                     </a>
                 </div>
                 <div class="hero-actions">
-                    <button class="btn btn-ghost" onclick="openAutoModal()"><i class="fa-solid fa-robot"></i> Auto Manager</button>
                     <button class="btn btn-ghost" onclick="fetchStats()"><i class="fa-solid fa-rotate"></i> Refresh</button>
                     <button class="btn btn-solid" onclick="openAddModal()"><i class="fa-solid fa-plus"></i> Add Account</button>
                 </div>
@@ -351,7 +345,7 @@
                 </div>
                 <div class="footer-col">
                     <h5>System</h5>
-                    <p>Safe Multi-Match Engine<br>Real-time EXP tracking<br>Auto Lone Wolf at Level 3+<br>Auto Recreate at EXP Limit</p>
+                    <p>Safe Multi-Match Engine<br>Real-time EXP tracking<br>Auto Lone Wolf at Level 3+<br>Always live · Always accurate</p>
                 </div>
                 <div class="footer-col">
                     <h5>Connect</h5>
@@ -382,46 +376,6 @@
             </div>
         </div>
     </footer>
-
-    <!-- AUTO MANAGER MODAL -->
-    <div class="modal-overlay" id="auto-modal">
-        <div class="modal-card">
-            <div class="modal-head">
-                <h3>Auto <em>Manager</em></h3>
-                <button class="modal-close" onclick="closeAutoModal()"><i class="fa-solid fa-xmark"></i></button>
-            </div>
-            <div class="modal-body">
-                <p style="font-size:13px; color:var(--ink-soft); margin-bottom: 20px;">
-                    Automatically create a team, start matches, and recreate accounts when EXP limit is reached.
-                </p>
-                <div class="field">
-                    <label>Target Account Count</label>
-                    <input type="number" class="inp" id="auto-count" value="4" min="1" max="10">
-                </div>
-                <div class="field">
-                    <label>EXP Limit per Account (0 = Unlimited)</label>
-                    <input type="number" class="inp" id="auto-limit" value="50000" min="0" step="1000">
-                </div>
-                <div class="field">
-                    <label>Region</label>
-                    <select class="inp" id="auto-region">
-                        <option value="BD">Bangladesh (BD)</option>
-                        <option value="ID">Indonesia (ID)</option>
-                        <option value="IND">India (IND)</option>
-                        <option value="PK">Pakistan (PK)</option>
-                    </select>
-                </div>
-                <div class="field">
-                    <label>Clan ID (Optional)</label>
-                    <input type="text" class="inp" id="auto-clan" value="3087207343">
-                </div>
-                <div class="modal-foot" style="justify-content: space-between;">
-                    <button type="button" class="btn btn-danger" onclick="stopAutoManager()"><i class="fa-solid fa-stop"></i> Stop Auto</button>
-                    <button type="button" class="btn btn-solid" onclick="startAutoManager()"><i class="fa-solid fa-play"></i> Start Auto</button>
-                </div>
-            </div>
-        </div>
-    </div>
 
     <!-- ADD ACCOUNT MODAL -->
     <div class="modal-overlay" id="add-modal">
@@ -502,6 +456,15 @@
                         <div class="val" style="color: var(--sage)" id="det-gained-exp">+0</div>
                     </div>
                 </div>
+
+                <div class="field" style="margin-top: 24px; padding-top: 20px; border-top: 1px dashed var(--line);">
+                    <label>Set EXP Limit (0 = Unlimited)</label>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="number" class="inp" id="det-limit-input" placeholder="e.g. 5000" min="0" style="flex: 1;">
+                        <button class="btn btn-solid" onclick="saveExpLimit()"><i class="fa-solid fa-save"></i> Save</button>
+                    </div>
+                    <p style="font-size: 11px; color: var(--ink-mute); margin-top: 8px;">Bot will automatically stop sending matches once gained EXP reaches this limit.</p>
+                </div>
             </div>
         </div>
     </div>
@@ -514,10 +477,6 @@
         // ---- Modals ----
         function openAddModal() { document.getElementById('add-modal').classList.add('active'); }
         function closeAddModal() { document.getElementById('add-modal').classList.remove('active'); }
-        
-        function openAutoModal() { document.getElementById('auto-modal').classList.add('active'); }
-        function closeAutoModal() { document.getElementById('auto-modal').classList.remove('active'); }
-        
         function closeDetailModal() { document.getElementById('detail-modal').classList.remove('active'); currentEditUid = null; }
 
         function toggleFormType() {
@@ -527,44 +486,6 @@
         }
 
         // ---- API Actions ----
-        async function startAutoManager() {
-            const count = parseInt(document.getElementById('auto-count').value) || 4;
-            const limit = parseInt(document.getElementById('auto-limit').value) || 50000;
-            const region = document.getElementById('auto-region').value;
-            const clan_id = document.getElementById('auto-clan').value.trim();
-
-            try {
-                const res = await fetch('/api/auto/start', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ count, exp_limit: limit, region, clan_id })
-                });
-                const data = await res.json();
-                if (data.ok) {
-                    alert('Auto Manager Started Successfully!');
-                    closeAutoModal();
-                    fetchStats();
-                } else {
-                    alert('Error: ' + (data.error || 'Unknown'));
-                }
-            } catch (err) { alert('Request failed: ' + err); }
-        }
-
-        async function stopAutoManager() {
-            if (!confirm('Are you sure you want to stop the Auto Manager and all accounts?')) return;
-            try {
-                const res = await fetch('/api/auto/stop', {
-                    method: 'POST'
-                });
-                const data = await res.json();
-                if (data.ok) {
-                    alert('Auto Manager Stopped.');
-                    closeAutoModal();
-                    fetchStats();
-                }
-            } catch (err) { alert('Request failed: ' + err); }
-        }
-
         async function submitAddAccount(e) {
             e.preventDefault();
             const type = document.getElementById('acc-type').value;
@@ -621,18 +542,6 @@
                 fetchStats();
             } catch (err) { console.error(err); }
         }
-        
-        async function togglePause(uid, event) {
-            if(event) event.stopPropagation();
-            try {
-                await fetch('/api/account/pause', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ uid })
-                });
-                fetchStats();
-            } catch (err) { console.error(err); }
-        }
 
         // ---- Detail Modal Functions ----
         function openDetail(uid) {
@@ -656,6 +565,9 @@
             
             // EXP
             document.getElementById('det-gained-exp').innerText = `+${(acc.gained_exp || 0).toLocaleString()}`;
+            
+            // Limit
+            document.getElementById('det-limit-input').value = acc.exp_limit > 0 ? acc.exp_limit : '';
 
             document.getElementById('detail-modal').classList.add('active');
         }
@@ -671,56 +583,52 @@
             }
         }
 
+        async function saveExpLimit() {
+            if (!currentEditUid) return;
+            const limitVal = document.getElementById('det-limit-input').value;
+            const limit = limitVal === '' ? 0 : Math.max(0, parseInt(limitVal) || 0);
+
+            try {
+                const res = await fetch('/api/account/set-limit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ uid: currentEditUid, limit: limit })
+                });
+                const data = await res.json();
+                if (data.status === 'ok') {
+                    alert('EXP Limit updated successfully!');
+                    closeDetailModal();
+                    fetchStats();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (err) { alert('Failed to update limit'); }
+        }
+
         // ---- Fetch & Render ----
         async function fetchStats() {
             try {
                 const res = await fetch('/api/stats');
                 const data = await res.json();
                 
-                cachedAccounts = data.accounts || []; // Cache for modal
+                cachedAccounts = data.accounts; // Cache for modal
 
-                document.getElementById('stat-total-accounts').innerText = data.total_accounts || 0;
+                document.getElementById('stat-total-accounts').innerText = data.total_accounts;
                 document.getElementById('stat-total-exp').innerText = '+' + (data.total_gained_exp || 0).toLocaleString();
                 document.getElementById('stat-total-matches').innerText = data.total_matches || 0;
-                document.getElementById('acc-count').innerText = cachedAccounts.length + ' units';
-
-                // Auto Manager Badge & Settings
-                if (data.auto_config) {
-                    const badge = document.getElementById('auto-active-badge');
-                    if (data.auto_config.active) {
-                        badge.style.display = 'inline-flex';
-                        badge.style.background = 'var(--terra)';
-                        badge.innerText = 'AUTO RUNNING';
-                    } else {
-                        badge.style.display = 'none';
-                    }
-                    
-                    // Update form fields if not focused
-                    if (document.activeElement !== document.getElementById('auto-count')) {
-                        document.getElementById('auto-count').value = data.auto_config.target_count || 4;
-                    }
-                    if (document.activeElement !== document.getElementById('auto-limit')) {
-                        document.getElementById('auto-limit').value = data.auto_config.exp_limit || 50000;
-                    }
-                    if (document.activeElement !== document.getElementById('auto-region')) {
-                        document.getElementById('auto-region').value = data.auto_config.region || 'BD';
-                    }
-                    if (document.activeElement !== document.getElementById('auto-clan')) {
-                        document.getElementById('auto-clan').value = data.auto_config.clan || '';
-                    }
-                }
+                document.getElementById('acc-count').innerText = data.accounts.length + ' units';
 
                 const container = document.getElementById('accounts-container');
-                if (cachedAccounts.length === 0) {
+                if (data.accounts.length === 0) {
                     container.innerHTML = `
                         <div class="empty">
                             <div class="empty-icon"><i class="fa-solid fa-seedling"></i></div>
                             <h4>No active accounts</h4>
-                            <p>Click "Add Account" or use "Auto Manager" to deploy bots</p>
+                            <p>Click "Add Account" to deploy your first bot</p>
                         </div>
                     `;
                 } else {
-                    container.innerHTML = cachedAccounts.map(acc => {
+                    container.innerHTML = data.accounts.map(acc => {
                         const gainedExp = acc.gained_exp || 0;
                         const status = acc.status || 'ONLINE';
                         let statusClass = 'online';
@@ -787,7 +695,6 @@
                                 <div class="acc-foot">
                                     <span class="last-match">Last · <b>${acc.last_match_time || 'Running...'}</b></span>
                                     <div class="actions">
-                                        <button class="act-btn" title="Pause/Resume" onclick="togglePause('${acc.uid}', event)"><i class="fa-solid fa-pause"></i></button>
                                         <button class="act-btn" title="Refresh Profile/EXP" onclick="refreshAccountInfo('${acc.uid}', event)"><i class="fa-solid fa-rotate"></i></button>
                                         <button class="act-btn del" title="Delete Account" onclick="deleteAccount('${acc.uid}', event)"><i class="fa-solid fa-trash"></i></button>
                                     </div>
@@ -798,12 +705,10 @@
                 }
 
                 const logContainer = document.getElementById('log-stream');
-                if (data.logs) {
-                    logContainer.innerHTML = data.logs.map(log => {
-                        return `<div class="log-item"><span class="log-time">[${log.time}]</span><span class="log-${log.level}">${escapeHtml(log.message)}</span></div>`;
-                    }).join('');
-                    logContainer.scrollTop = logContainer.scrollHeight;
-                }
+                logContainer.innerHTML = data.logs.map(log => {
+                    return `<div class="log-item"><span class="log-time">[${log.time}]</span><span class="log-${log.level}">${escapeHtml(log.message)}</span></div>`;
+                }).join('');
+                logContainer.scrollTop = logContainer.scrollHeight;
 
             } catch (err) {
                 console.error("Failed to fetch stats:", err);
