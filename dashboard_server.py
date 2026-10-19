@@ -7,6 +7,7 @@ MAHIR Edition:
 - Auto Lone Wolf mode from Level 3 onwards
 - Per-account EXP limit
 - Account detail (password, exp_limit, mode, etc.)
+- Pause / Resume per-account support
 """
 
 import asyncio
@@ -65,6 +66,7 @@ class BotState:
                 "exp_limit": 0,
                 "mode": "BR",
                 "mode_manual": False,
+                "paused": False,
                 "status": "ONLINE",
                 "matches_played": 0,
                 "active_matches": 0,
@@ -84,7 +86,8 @@ class BotState:
             acc["likes"] = likes
             if not acc.get("mode_manual", False):
                 acc["mode"] = "BR"
-            acc["status"] = "ONLINE"
+            acc.setdefault("paused", False)
+            acc["status"] = "PAUSED" if acc.get("paused", False) else "ONLINE"
             acc["last_updated"] = time.strftime("%H:%M:%S")
 
         self.recalc_totals()
@@ -112,16 +115,17 @@ class BotState:
                 "success", uid_str,
             )
 
-        # Auto LIMIT status when exp_limit reached
-        limit = int(acc.get("exp_limit", 0) or 0)
-        if limit > 0 and acc["gained_exp"] >= limit:
-            if acc["status"] not in ("LIMIT", "PAUSED"):
-                acc["status"] = "LIMIT"
-                self.log(
-                    f"Account {acc['nickname']} ({uid_str}) reached EXP limit "
-                    f"({acc['gained_exp']}/{limit}). Standing by.",
-                    "warning", uid_str,
-                )
+        # Auto LIMIT status when exp_limit reached (skip if already PAUSED)
+        if acc.get("status") != "PAUSED":
+            limit = int(acc.get("exp_limit", 0) or 0)
+            if limit > 0 and acc["gained_exp"] >= limit:
+                if acc["status"] not in ("LIMIT", "PAUSED"):
+                    acc["status"] = "LIMIT"
+                    self.log(
+                        f"Account {acc['nickname']} ({uid_str}) reached EXP limit "
+                        f"({acc['gained_exp']}/{limit}). Standing by.",
+                        "warning", uid_str,
+                    )
 
         self.recalc_totals()
 
@@ -180,12 +184,47 @@ class BotState:
         )
         return True, mode
 
+    # ---------- pause / resume ----------
+    def is_paused(self, uid: str) -> bool:
+        """Check whether an account is currently paused (worker should stand by)."""
+        uid_str = str(uid)
+        acc = self.accounts.get(uid_str)
+        if not acc:
+            return False
+        return bool(acc.get("paused", False))
+
+    def set_paused(self, uid: str, paused: bool):
+        """Set pause state for an account. Returns (ok, error_or_None)."""
+        uid_str = str(uid)
+        acc = self.accounts.get(uid_str)
+        if not acc:
+            return False, "Account not found"
+        acc["paused"] = bool(paused)
+        acc["status"] = "PAUSED" if paused else "ONLINE"
+        acc["last_updated"] = time.strftime("%H:%M:%S")
+        self.log(
+            f"UID {uid_str} ({acc.get('nickname', 'Unknown')}) "
+            f"{'paused' if paused else 'resumed'}",
+            "warning" if paused else "success",
+            uid_str,
+        )
+        return True, None
+
     # ---------- status ----------
     def update_status(self, uid: str, status: str,
                       active_matches: Optional[int] = None):
         uid_str = str(uid)
         acc = self.accounts.get(uid_str)
         if not acc:
+            return
+
+        # Never overwrite PAUSED status while paused
+        if acc.get("status") == "PAUSED" or acc.get("paused", False):
+            if active_matches is not None:
+                acc["active_matches"] = active_matches
+            if status == "PAUSED":
+                acc["status"] = "PAUSED"
+                acc["last_updated"] = time.strftime("%H:%M:%S")
             return
 
         # Don't overwrite LIMIT with ONLINE while still over the limit
@@ -239,6 +278,7 @@ def _enrich_account(acc: Dict[str, Any]) -> Dict[str, Any]:
     out["password"] = cred.get("auth_password", "") or ""
     out["auth_uid"] = cred.get("auth_uid", "") or ""
     out["auth_type"] = cred.get("auth_type", "guest")
+    out["paused"] = bool(acc.get("paused", False))
 
     if "exp_limit" in cred:
         try:
@@ -709,13 +749,37 @@ async def handle_set_exp_limit(request: web.Request) -> web.Response:
             gained = int(acc.get("gained_exp", 0) or 0)
             if limit == 0 or gained < limit:
                 if acc.get("status") == "LIMIT":
-                    acc["status"] = "ONLINE"
+                    acc["status"] = "PAUSED" if acc.get("paused") else "ONLINE"
 
         bot_state.log(
             f"EXP limit for UID {uid} set to {limit if limit > 0 else 'unlimited'}",
             "success", uid,
         )
         return web.json_response({"status": "ok", "uid": uid, "limit": limit})
+    except Exception as e:
+        return web.json_response(
+            {"status": "error", "error": str(e)}, status=400
+        )
+
+
+async def handle_pause_account(request: web.Request) -> web.Response:
+    """Pause / resume a single account worker."""
+    try:
+        data = await request.json()
+        uid = str(data.get("uid", "")).strip()
+        if not uid:
+            return web.json_response(
+                {"status": "error", "error": "UID is required"}, status=400
+            )
+        paused = bool(data.get("paused", True))
+        ok, err = bot_state.set_paused(uid, paused)
+        if not ok:
+            return web.json_response(
+                {"status": "error", "error": err or "Account not found"}, status=404
+            )
+        return web.json_response({
+            "status": "ok", "uid": uid, "paused": paused
+        })
     except Exception as e:
         return web.json_response(
             {"status": "error", "error": str(e)}, status=400
@@ -734,9 +798,9 @@ async def start_web_dashboard(host: str = "0.0.0.0", port: int = 5000):
     app.router.add_get("/health", handle_health)
     app.router.add_post("/api/account/refresh", handle_refresh_account)
     app.router.add_post("/api/account/mode", handle_mode_switch)
-    # 🔥 NEW endpoints
     app.router.add_post("/api/account/set-limit", handle_set_exp_limit)
     app.router.add_get("/api/account/detail", handle_account_detail)
+    app.router.add_post("/api/account/pause", handle_pause_account)
 
     runner = web.AppRunner(app)
     await runner.setup()
