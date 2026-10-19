@@ -12,4 +12,4 @@ COPY . .
 
 EXPOSE 10000
 
-CMD ["python", "main-fix.py"]
+CMD ["python", "main.py"]
