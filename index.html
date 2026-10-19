@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MAHIR · Level Up Bot — Crafted by MAHIR</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700;9..144,800;9..144,900&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --cream: #f4ede0; --cream-2: #ece3d2; --paper: #fbf7ee;
+            --plum: #2b1622; --plum-2: #3d1f2f; --wine: #5c1a2e; --rose: #b8416b;
+            --gold: #c9964a; --gold-light: #e8c88a; --terra: #c25a3c; --sage: #7a8a5c;
+            --ink: #1a1016; --ink-soft: #5c4a52; --ink-mute: #8a7680;
+            --line: rgba(43, 22, 34, 0.12); --telegram: #229ED9; --tiktok: #FE2C55;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--cream);
+            color: var(--ink);
+            min-height: 100vh;
+            padding: 0;
+            overflow-x: hidden;
+            background-image:
+                radial-gradient(ellipse 50% 40% at 0% 0%, rgba(201, 150, 74, 0.10), transparent 60%),
+                radial-gradient(ellipse 45% 50% at 100% 100%, rgba(184, 65, 107, 0.08), transparent 60%);
+            background-attachment: fixed;
+        }
+
+        .container { max-width: 1440px; margin: 0 auto; padding: 0 28px; }
+
+        /* MARQUEE */
+        .marquee { background: var(--plum); color: var(--cream); overflow: hidden; border-bottom: 1px solid var(--gold); position: relative; z-index: 5; }
+        .marquee-track { display: flex; gap: 0; animation: marquee-scroll 28s linear infinite; white-space: nowrap; padding: 11px 0; }
+        @keyframes marquee-scroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+        .marquee-item { display: inline-flex; align-items: center; gap: 18px; padding: 0 22px; font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 3px; text-transform: uppercase; font-weight: 500; }
+        .marquee-item .star { color: var(--gold); font-size: 10px; }
+        .marquee-item b { font-family: 'Fraunces', serif; font-size: 14px; letter-spacing: 1.5px; font-weight: 700; color: var(--gold-light); font-style: italic; }
+
+        /* HERO */
+        .hero { padding: 42px 0 28px; display: grid; grid-template-columns: 1fr auto; gap: 40px; align-items: end; border-bottom: 1px solid var(--line); position: relative; }
+        .eyebrow { display: inline-flex; align-items: center; gap: 10px; font-family: 'DM Mono', monospace; font-size: 10.5px; letter-spacing: 3px; text-transform: uppercase; color: var(--wine); font-weight: 500; margin-bottom: 16px; padding: 6px 14px; border: 1px solid var(--wine); border-radius: 100px; background: rgba(92, 26, 46, 0.03); }
+        .eyebrow::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--rose); box-shadow: 0 0 0 3px rgba(184, 65, 107, 0.2); animation: dot-pulse 2s ease-in-out infinite; }
+        @keyframes dot-pulse { 0%, 100% { box-shadow: 0 0 0 3px rgba(184, 65, 107, 0.2); } 50% { box-shadow: 0 0 0 6px rgba(184, 65, 107, 0.06); } }
+
+        .hero h1 { font-family: 'Fraunces', serif; font-size: clamp(38px, 5.5vw, 66px); font-weight: 500; line-height: 0.95; letter-spacing: -2.5px; color: var(--plum); margin-bottom: 18px; font-variation-settings: "opsz" 144; }
+        .hero h1 em { font-style: italic; font-weight: 400; color: var(--wine); position: relative; }
+        .hero h1 em::after { content: ""; position: absolute; left: 0; right: 0; bottom: 6px; height: 8px; background: linear-gradient(90deg, var(--gold-light), var(--gold)); opacity: 0.4; z-index: -1; border-radius: 4px; }
+        .hero-sub { font-size: 15px; color: var(--ink-soft); max-width: 520px; line-height: 1.6; font-weight: 400; }
+        .hero-sub .hl { color: var(--wine); font-weight: 600; font-style: italic; font-family: 'Fraunces', serif; }
+        .hero-right { display: flex; flex-direction: column; align-items: flex-end; gap: 14px; }
+        .credit-seal { display: flex; align-items: center; gap: 14px; padding: 14px 22px; background: linear-gradient(135deg, var(--paper), var(--cream-2)); border: 1px solid var(--gold); border-radius: 100px; box-shadow: 0 1px 0 rgba(255,255,255,0.9) inset, 0 8px 28px -10px rgba(43, 22, 34, 0.25); }
+        .seal-mark { width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, var(--gold), var(--terra)); color: var(--cream); display: flex; align-items: center; justify-content: center; font-family: 'Fraunces', serif; font-size: 17px; font-weight: 700; font-style: italic; border: 2px solid var(--paper); box-shadow: 0 0 0 1px var(--gold), 0 4px 12px rgba(201, 150, 74, 0.4); }
+        .seal-text { display: flex; flex-direction: column; gap: 1px; }
+        .seal-text .label { font-family: 'DM Mono', monospace; font-size: 8.5px; letter-spacing: 2px; text-transform: uppercase; color: var(--ink-mute); font-weight: 500; }
+        .seal-text .name { font-family: 'Fraunces', serif; font-size: 16px; font-weight: 700; letter-spacing: 0.5px; color: var(--plum); font-style: italic; }
+        .hero-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+
+        .btn { display: inline-flex; align-items: center; gap: 9px; padding: 12px 22px; font-size: 12.5px; font-weight: 600; letter-spacing: 0.6px; text-transform: uppercase; font-family: 'DM Sans', sans-serif; cursor: pointer; border-radius: 100px; transition: all 0.25s ease; border: 1px solid transparent; text-decoration: none; }
+        .btn-ghost { background: transparent; border-color: var(--line); color: var(--plum); }
+        .btn-ghost:hover { border-color: var(--plum); background: var(--paper); }
+        .btn-solid { background: var(--plum); color: var(--cream); box-shadow: 0 8px 24px -8px rgba(43, 22, 34, 0.5); }
+        .btn-solid:hover { background: var(--wine); transform: translateY(-2px); box-shadow: 0 12px 32px -8px rgba(92, 26, 46, 0.6); }
+        .btn-danger { background: var(--terra); color: #fff; }
+        .btn-danger:hover { background: #a34227; }
+
+        /* SOCIAL BAR */
+        .social-bar { display: flex; gap: 10px; flex-wrap: wrap; }
+        .social-pill { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 100px; background: var(--paper); border: 1px solid var(--line); font-family: 'DM Mono', monospace; font-size: 10.5px; letter-spacing: 1.2px; color: var(--ink-soft); text-decoration: none; text-transform: uppercase; font-weight: 500; transition: all 0.25s ease; }
+        .social-pill i { font-size: 13px; }
+        .social-pill:hover { transform: translateY(-2px); box-shadow: 0 6px 20px -6px rgba(43, 22, 34, 0.3); }
+        .social-pill.telegram { color: var(--telegram); border-color: rgba(34, 158, 217, 0.4); }
+        .social-pill.telegram:hover { background: var(--telegram); color: white; border-color: var(--telegram); }
+        .social-pill.tiktok { color: var(--tiktok); border-color: rgba(254, 44, 85, 0.4); }
+        .social-pill.tiktok:hover { background: var(--tiktok); color: white; border-color: var(--tiktok); }
+
+        /* STATS */
+        .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; padding: 32px 0; border-bottom: 1px solid var(--line); }
+        .stat { padding: 0 26px; border-right: 1px solid var(--line); position: relative; }
+        .stat:first-child { padding-left: 0; }
+        .stat:last-child { border-right: none; padding-right: 0; }
+        .stat-index { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 2px; color: var(--ink-mute); margin-bottom: 14px; font-weight: 500; display: flex; align-items: center; gap: 8px; }
+        .stat-index::before { content: ""; width: 14px; height: 1px; background: var(--ink-mute); }
+        .stat-num { font-family: 'Fraunces', serif; font-size: clamp(36px, 4vw, 52px); font-weight: 500; line-height: 1; letter-spacing: -2px; color: var(--plum); font-variation-settings: "opsz" 144; margin-bottom: 6px; }
+        .stat-num.accent-wine { color: var(--wine); } .stat-num.accent-terra { color: var(--terra); } .stat-num.accent-sage { color: var(--sage); }
+        .stat-label { font-size: 12px; color: var(--ink-soft); letter-spacing: 0.3px; font-weight: 500; }
+
+        /* MAIN LAYOUT */
+        .layout { display: grid; grid-template-columns: 1fr 380px; gap: 48px; padding: 40px 0 60px; align-items: start; }
+        .section-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 26px; padding-bottom: 16px; border-bottom: 1px solid var(--line); }
+        .section-title { font-family: 'Fraunces', serif; font-size: 28px; font-weight: 500; letter-spacing: -0.8px; color: var(--plum); font-variation-settings: "opsz" 144; }
+        .section-title em { font-style: italic; color: var(--wine); font-weight: 400; }
+        .section-tag { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--ink-mute); font-weight: 500; }
+
+        /* ACCOUNT CARDS */
+        .accounts { display: flex; flex-direction: column; gap: 20px; }
+        .acc { background: var(--paper); border: 1px solid var(--line); border-radius: 4px; overflow: hidden; transition: all 0.3s ease; position: relative; cursor: pointer; }
+        .acc:hover { border-color: var(--gold); box-shadow: 0 18px 48px -20px rgba(43, 22, 34, 0.3); transform: translateY(-2px); }
+        .acc::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: linear-gradient(180deg, var(--gold), var(--terra)); opacity: 0; transition: opacity 0.3s; }
+        .acc:hover::before { opacity: 1; }
+        .acc-head { display: flex; align-items: center; justify-content: space-between; padding: 22px 26px; gap: 20px; }
+        .acc-id-group { display: flex; align-items: center; gap: 16px; min-width: 0; }
+        .acc-avatar { width: 52px; height: 52px; border-radius: 50%; background: linear-gradient(135deg, var(--wine), var(--rose)); color: var(--cream); display: flex; align-items: center; justify-content: center; font-family: 'Fraunces', serif; font-size: 20px; font-weight: 600; font-style: italic; flex-shrink: 0; box-shadow: 0 0 0 3px var(--paper), 0 0 0 4px var(--gold); }
+        .acc-info { min-width: 0; }
+        .acc-name { font-family: 'Fraunces', serif; font-size: 20px; font-weight: 600; letter-spacing: -0.3px; color: var(--plum); display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
+        .acc-region { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 1.5px; padding: 3px 8px; background: var(--plum); color: var(--gold-light); border-radius: 3px; font-weight: 500; }
+        .acc-uid { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--ink-mute); letter-spacing: 0.5px; }
+        .acc-status { display: inline-flex; align-items: center; gap: 8px; padding: 7px 14px; border-radius: 100px; font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 1.2px; text-transform: uppercase; font-weight: 500; flex-shrink: 0; }
+        .acc-status.online { background: rgba(122, 138, 92, 0.12); color: #4d5a32; border: 1px solid rgba(122, 138, 92, 0.4); }
+        .acc-status.match { background: rgba(194, 90, 60, 0.1); color: var(--terra); border: 1px solid rgba(194, 90, 60, 0.4); animation: match-flicker 1.8s ease-in-out infinite alternate; }
+        .acc-status.limit { background: rgba(201, 150, 74, 0.15); color: var(--gold); border: 1px solid rgba(201, 150, 74, 0.5); }
+        @keyframes match-flicker { 0% { background: rgba(194, 90, 60, 0.08); } 100% { background: rgba(194, 90, 60, 0.18); } }
+        .status-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; box-shadow: 0 0 0 3px currentColor; opacity: 0.5; }
+        .acc-status.online .status-dot { opacity: 0.8; }
+        .acc-status.match .status-dot { animation: dot-blink 1s infinite; }
+        @keyframes dot-blink { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+
+        .acc-exp { display: grid; grid-template-columns: repeat(3, 1fr); padding: 18px 26px; background: var(--cream); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+        .exp-cell { padding-right: 16px; position: relative; }
+        .exp-cell + .exp-cell { padding-left: 22px; border-left: 1px solid var(--line); }
+        .exp-cell:last-child { padding-right: 0; }
+        .exp-lbl { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--ink-mute); font-weight: 500; margin-bottom: 6px; }
+        .exp-val { font-family: 'Fraunces', serif; font-size: 22px; font-weight: 600; color: var(--plum); letter-spacing: -0.5px; line-height: 1; }
+        .exp-val.gained { color: var(--sage); }
+        .exp-val .plus { font-size: 14px; color: var(--sage); font-weight: 500; margin-right: 2px; }
+
+        .acc-level { padding: 18px 26px; }
+        .level-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .level-lvl { font-family: 'Fraunces', serif; font-size: 16px; font-weight: 600; color: var(--plum); font-style: italic; }
+        .level-lvl span { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 1.2px; color: var(--ink-mute); text-transform: uppercase; font-style: normal; font-weight: 500; margin-right: 4px; }
+        .level-matches { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 1px; color: var(--ink-mute); text-transform: uppercase; }
+        .level-track { height: 4px; background: var(--cream-2); border-radius: 100px; overflow: hidden; position: relative; }
+        .level-fill { height: 100%; background: linear-gradient(90deg, var(--gold), var(--terra), var(--rose)); border-radius: 100px; transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1); position: relative; }
+
+        .acc-foot { display: flex; align-items: center; justify-content: space-between; padding: 14px 26px; background: var(--cream); border-top: 1px solid var(--line); }
+        .last-match { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.5px; color: var(--ink-mute); text-transform: uppercase; }
+        .last-match b { color: var(--plum); font-weight: 500; }
+        .actions { display: flex; gap: 6px; }
+        .act-btn { width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--line); background: var(--paper); color: var(--ink-soft); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 12px; transition: all 0.2s ease; }
+        .act-btn:hover { background: var(--plum); color: var(--cream); border-color: var(--plum); transform: rotate(45deg); }
+        .act-btn.del:hover { background: var(--rose); border-color: var(--rose); color: var(--cream); }
+
+        /* LOG PANEL */
+        .log-panel { background: var(--plum); border-radius: 8px; overflow: hidden; position: sticky; top: 24px; box-shadow: 0 24px 60px -24px rgba(43, 22, 34, 0.5); border: 1px solid rgba(201, 150, 74, 0.2); }
+        .log-head { padding: 22px 26px; border-bottom: 1px solid rgba(201, 150, 74, 0.15); display: flex; align-items: center; justify-content: space-between; background: linear-gradient(180deg, rgba(92, 26, 46, 0.3), transparent); }
+        .log-head-title { display: flex; align-items: center; gap: 12px; font-family: 'Fraunces', serif; font-size: 17px; font-weight: 500; color: var(--gold-light); font-style: italic; letter-spacing: -0.2px; }
+        .live-badge { display: inline-flex; align-items: center; gap: 6px; font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 1.5px; color: var(--gold-light); text-transform: uppercase; padding: 4px 10px; border: 1px solid rgba(201, 150, 74, 0.4); border-radius: 100px; }
+        .live-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 8px var(--gold); animation: dot-blink 1.4s infinite; }
+        .log-stream { height: 580px; overflow-y: auto; padding: 20px 24px; font-family: 'DM Mono', monospace; font-size: 11.5px; line-height: 1.9; color: rgba(244, 237, 224, 0.7); background: var(--plum); }
+        .log-item { display: flex; gap: 12px; padding: 3px 0; border-bottom: 1px solid rgba(201, 150, 74, 0.06); }
+        .log-time { color: rgba(232, 200, 138, 0.4); flex-shrink: 0; font-size: 10px; }
+        .log-info { color: #8fb8d8; } .log-success { color: #a8c890; } .log-warning { color: #e8c88a; } .log-error { color: #e89a8a; }
+
+        /* MODALS */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(26, 16, 22, 0.75); backdrop-filter: blur(10px); display: none; align-items: center; justify-content: center; z-index: 300; padding: 20px; }
+        .modal-overlay.active { display: flex; }
+        .modal-card { background: var(--paper); border-radius: 6px; width: 100%; max-width: 500px; overflow: hidden; box-shadow: 0 40px 100px -20px rgba(26, 16, 22, 0.7); border: 1px solid var(--gold); position: relative; }
+        .modal-card::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, var(--gold), var(--terra), var(--rose)); }
+        .modal-head { padding: 26px 30px 22px; border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; }
+        .modal-head h3 { font-family: 'Fraunces', serif; font-size: 24px; font-weight: 500; letter-spacing: -0.6px; color: var(--plum); }
+        .modal-head h3 em { font-style: italic; color: var(--wine); }
+        .modal-close { width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--line); background: transparent; color: var(--ink-soft); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+        .modal-close:hover { background: var(--plum); color: var(--cream); border-color: var(--plum); }
+        .modal-body { padding: 26px 30px 30px; }
+        .field { margin-bottom: 18px; }
+        .field label { display: block; font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 1.8px; text-transform: uppercase; color: var(--ink-mute); font-weight: 500; margin-bottom: 8px; }
+        .inp { width: 100%; padding: 12px 16px; background: var(--cream); border: 1px solid var(--line); border-radius: 4px; color: var(--ink); font-family: 'DM Sans', sans-serif; font-size: 14px; outline: none; transition: all 0.2s; }
+        .inp:focus { border-color: var(--gold); background: var(--paper); box-shadow: 0 0 0 3px rgba(201, 150, 74, 0.15); }
+        .modal-foot { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; padding-top: 22px; border-top: 1px solid var(--line); }
+        .modal-foot .btn { padding: 11px 22px; }
+
+        /* AUTO MANAGER BADGE */
+        .auto-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 100px; background: var(--sage); color: white; font-size: 10px; font-weight: 700; margin-left: 10px; animation: dot-pulse 2s infinite; }
+        
+        /* DETAIL MODAL STYLES */
+        .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+        .detail-item { background: var(--cream); padding: 12px 16px; border-radius: 4px; border: 1px solid var(--line); }
+        .detail-item label { display: block; font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--ink-mute); margin-bottom: 4px; }
+        .detail-item .val { font-family: 'Fraunces', serif; font-size: 16px; font-weight: 600; color: var(--plum); word-break: break-all; }
+        .detail-item .val.pw { font-family: 'DM Mono', monospace; font-size: 13px; font-weight: 500; }
+        .pw-toggle { cursor: pointer; color: var(--gold); margin-left: 8px; font-size: 11px; text-decoration: underline; }
+        
+        /* FOOTER */
+        .site-footer { background: var(--plum); color: var(--cream); padding: 50px 0 0; margin-top: 20px; position: relative; overflow: hidden; }
+        .site-footer::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--gold), transparent); }
+        .footer-inner { max-width: 1440px; margin: 0 auto; padding: 0 28px; }
+        .footer-top { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr; gap: 44px; padding-bottom: 44px; border-bottom: 1px solid rgba(201, 150, 74, 0.15); }
+        .footer-brand h3 { font-family: 'Fraunces', serif; font-size: 32px; font-weight: 500; letter-spacing: -1px; color: var(--gold-light); font-style: italic; margin-bottom: 10px; }
+        .footer-brand p { font-size: 13px; line-height: 1.7; color: rgba(244, 237, 224, 0.55); max-width: 380px; }
+        .footer-col h5 { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 2.5px; text-transform: uppercase; color: var(--gold); font-weight: 500; margin-bottom: 16px; }
+        .footer-col p { font-size: 13px; color: rgba(244, 237, 224, 0.7); line-height: 1.8; }
+        .footer-col p b { color: var(--gold-light); font-family: 'Fraunces', serif; font-style: italic; font-size: 15px; font-weight: 600; letter-spacing: 0.5px; }
+        .footer-socials { display: flex; flex-direction: column; gap: 10px; }
+        .footer-social-link { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 6px; background: rgba(244, 237, 224, 0.04); border: 1px solid rgba(201, 150, 74, 0.2); color: rgba(244, 237, 224, 0.8); text-decoration: none; font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 1px; transition: all 0.25s; }
+        .footer-social-link:hover { background: rgba(244, 237, 224, 0.08); border-color: var(--gold); color: var(--gold-light); transform: translateX(4px); }
+        .footer-social-link i { font-size: 14px; width: 20px; text-align: center; }
+        .footer-social-link.telegram i { color: var(--telegram); } .footer-social-link.tiktok i { color: var(--tiktok); }
+        .footer-social-link b { margin-left: auto; color: var(--gold-light); font-family: 'Fraunces', serif; font-style: italic; font-size: 13px; letter-spacing: 0.5px; }
+        .footer-bottom { padding: 26px 0; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px; }
+        .footer-copy { font-family: 'DM Mono', monospace; font-size: 10.5px; letter-spacing: 1.5px; color: rgba(244, 237, 224, 0.4); text-transform: uppercase; }
+        .footer-credit { display: flex; align-items: center; gap: 12px; font-family: 'DM Mono', monospace; font-size: 10.5px; letter-spacing: 2px; text-transform: uppercase; color: rgba(244, 237, 224, 0.5); }
+        .footer-credit .heart { color: var(--rose); font-size: 11px; }
+        .footer-credit b { font-family: 'Fraunces', serif; font-size: 15px; letter-spacing: 1px; font-weight: 700; font-style: italic; color: var(--gold-light); text-transform: none; padding: 0 6px; border-bottom: 1px solid var(--gold); }
+
+        @media (max-width: 1040px) {
+            .layout { grid-template-columns: 1fr; }
+            .hero { grid-template-columns: 1fr; }
+            .hero-right { align-items: flex-start; }
+            .stats { grid-template-columns: repeat(2, 1fr); row-gap: 30px; }
+            .stat:nth-child(2) { border-right: none; }
+            .stat:nth-child(3) { padding-left: 0; }
+            .stat:nth-child(1), .stat:nth-child(2) { padding-bottom: 24px; border-bottom: 1px solid var(--line); }
+            .footer-top { grid-template-columns: 1fr 1fr; gap: 32px; }
+        }
+        @media (max-width: 560px) {
+            .container { padding: 0 20px; }
+            .stats { grid-template-columns: 1fr; }
+            .stat { padding: 20px 0 !important; border-right: none; border-bottom: 1px solid var(--line); }
+            .stat:last-child { border-bottom: none; }
+            .hero-actions { flex-direction: column; width: 100%; }
+            .btn { justify-content: center; width: 100%; }
+            .footer-top { grid-template-columns: 1fr; }
+            .detail-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <!-- MARQUEE -->
+    <div class="marquee">
+        <div class="marquee-track">
+            <span class="marquee-item"><i class="fa-solid fa-star star"></i> Designed &amp; Engineered by <b>MAHIR</b></span>
+            <span class="marquee-item"><i class="fa-solid fa-star star"></i> MAHIR · Level Up Bot · Premium Edition</span>
+            <span class="marquee-item"><i class="fa-solid fa-star star"></i> Crafted with precision by <b>MAHIR</b></span>
+            <span class="marquee-item"><i class="fa-solid fa-star star"></i> Telegram · THEMAHIRWORLD · TikTok · MAHIR__222</span>
+            <span class="marquee-item"><i class="fa-solid fa-star star"></i> Designed &amp; Engineered by <b>MAHIR</b></span>
+            <span class="marquee-item"><i class="fa-solid fa-star star"></i> MAHIR · Level Up Bot · Premium Edition</span>
+            <span class="marquee-item"><i class="fa-solid fa-star star"></i> Crafted with precision by <b>MAHIR</b></span>
+            <span class="marquee-item"><i class="fa-solid fa-star star"></i> Safe Multi-Match Engine · Live Monitoring</span>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- HERO -->
+        <header class="hero">
+            <div class="hero-left">
+                <div class="eyebrow">Level Up Bot · Edition 2.0</div>
+                <h1>MAHIR<br><em>Level Up Bot</em> <span id="auto-active-badge" class="auto-badge" style="display:none">AUTO ON</span></h1>
+                <p class="hero-sub">
+                    A refined dashboard for monitoring live accounts, tracking EXP gains, and orchestrating matches — <span class="hl">engineered with care</span> by MAHIR.
+                </p>
+            </div>
+            <div class="hero-right">
+                <div class="credit-seal">
+                    <div class="seal-mark">M</div>
+                    <div class="seal-text">
+                        <span class="label">Created By</span>
+                        <span class="name">MAHIR</span>
+                    </div>
+                </div>
+                <div class="social-bar">
+                    <a href="https://t.me/THEMAHIRWORLD" target="_blank" rel="noopener" class="social-pill telegram">
+                        <i class="fa-brands fa-telegram"></i> THEMAHIRWORLD
+                    </a>
+                    <a href="https://t.me/MAHIR0208" target="_blank" rel="noopener" class="social-pill telegram">
+                        <i class="fa-brands fa-telegram"></i> MAHIR0208
+                    </a>
+                    <a href="https://tiktok.com/@MAHIR__222" target="_blank" rel="noopener" class="social-pill tiktok">
+                        <i class="fa-brands fa-tiktok"></i> MAHIR__222
+                    </a>
+                </div>
+                <div class="hero-actions">
+                    <button class="btn btn-ghost" onclick="openAutoModal()"><i class="fa-solid fa-robot"></i> Auto Manager</button>
+                    <button class="btn btn-ghost" onclick="fetchStats()"><i class="fa-solid fa-rotate"></i> Refresh</button>
+                    <button class="btn btn-solid" onclick="openAddModal()"><i class="fa-solid fa-plus"></i> Add Account</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- STATS -->
+        <div class="stats">
+            <div class="stat">
+                <div class="stat-index">01 / Accounts</div>
+                <div class="stat-num" id="stat-total-accounts">0</div>
+                <div class="stat-label">Active accounts running</div>
+            </div>
+            <div class="stat">
+                <div class="stat-index">02 / EXP Earned</div>
+                <div class="stat-num accent-sage" id="stat-total-exp">+0</div>
+                <div class="stat-label">Total experience gained</div>
+            </div>
+            <div class="stat">
+                <div class="stat-index">03 / Matches</div>
+                <div class="stat-num accent-terra" id="stat-total-matches">0</div>
+                <div class="stat-label">Completed match runs</div>
+            </div>
+            <div class="stat">
+                <div class="stat-index">04 / Uptime</div>
+                <div class="stat-num accent-wine" id="stat-uptime">00:00:00</div>
+                <div class="stat-label">Bot has been live</div>
+            </div>
+        </div>
+
+        <!-- MAIN LAYOUT -->
+        <div class="layout">
+            <!-- ACCOUNTS -->
+            <section>
+                <div class="section-head">
+                    <h2 class="section-title">Active <em>Accounts</em></h2>
+                    <span class="section-tag" id="acc-count">0 units</span>
+                </div>
+                <div class="accounts" id="accounts-container">
+                    <div class="empty">
+                        <div class="empty-icon"><i class="fa-solid fa-circle-notch fa-spin"></i></div>
+                        <h4>Loading active accounts</h4>
+                        <p>Please wait a moment...</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- LOG PANEL -->
+            <aside class="log-panel">
+                <div class="log-head">
+                    <div class="log-head-title">
+                        <i class="fa-solid fa-feather-pointed"></i>
+                        The Journal
+                    </div>
+                    <span class="live-badge"><span class="live-dot"></span> Live</span>
+                </div>
+                <div class="log-stream" id="log-stream"></div>
+            </aside>
+        </div>
+    </div>
+
+    <!-- SITE FOOTER -->
+    <footer class="site-footer">
+        <div class="footer-inner">
+            <div class="footer-top">
+                <div class="footer-brand">
+                    <h3>MAHIR</h3>
+                    <p>A precision-built Level Up Bot dashboard — crafted for enthusiasts who value elegance, reliability, and live monitoring. Every pixel designed with intention.</p>
+                </div>
+                <div class="footer-col">
+                    <h5>Designed By</h5>
+                    <p><b>MAHIR</b><br>Creative Developer &amp; UI Architect<br>Edition 2.0 · Premium</p>
+                </div>
+                <div class="footer-col">
+                    <h5>System</h5>
+                    <p>Safe Multi-Match Engine<br>Real-time EXP tracking<br>Auto Lone Wolf at Level 3+<br>Auto Recreate at EXP Limit</p>
+                </div>
+                <div class="footer-col">
+                    <h5>Connect</h5>
+                    <div class="footer-socials">
+                        <a href="https://t.me/THEMAHIRWORLD" target="_blank" rel="noopener" class="footer-social-link telegram">
+                            <i class="fa-brands fa-telegram"></i>
+                            <span>Channel</span>
+                            <b>THEMAHIRWORLD</b>
+                        </a>
+                        <a href="https://t.me/MAHIR0208" target="_blank" rel="noopener" class="footer-social-link telegram">
+                            <i class="fa-brands fa-telegram"></i>
+                            <span>Telegram</span>
+                            <b>MAHIR0208</b>
+                        </a>
+                        <a href="https://tiktok.com/@MAHIR__222" target="_blank" rel="noopener" class="footer-social-link tiktok">
+                            <i class="fa-brands fa-tiktok"></i>
+                            <span>TikTok</span>
+                            <b>MAHIR__222</b>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <div class="footer-copy">© 2025 MAHIR · All Rights Reserved</div>
+                <div class="footer-credit">
+                    Crafted with <i class="fa-solid fa-heart heart"></i> by <b>MAHIR</b>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- AUTO MANAGER MODAL -->
+    <div class="modal-overlay" id="auto-modal">
+        <div class="modal-card">
+            <div class="modal-head">
+                <h3>Auto <em>Manager</em></h3>
+                <button class="modal-close" onclick="closeAutoModal()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <p style="font-size:13px; color:var(--ink-soft); margin-bottom: 20px;">
+                    Automatically create a team, start matches, and recreate accounts when EXP limit is reached.
+                </p>
+                <div class="field">
+                    <label>Target Account Count</label>
+                    <input type="number" class="inp" id="auto-count" value="4" min="1" max="10">
+                </div>
+                <div class="field">
+                    <label>EXP Limit per Account (0 = Unlimited)</label>
+                    <input type="number" class="inp" id="auto-limit" value="50000" min="0" step="1000">
+                </div>
+                <div class="field">
+                    <label>Region</label>
+                    <select class="inp" id="auto-region">
+                        <option value="BD">Bangladesh (BD)</option>
+                        <option value="ID">Indonesia (ID)</option>
+                        <option value="IND">India (IND)</option>
+                        <option value="PK">Pakistan (PK)</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label>Clan ID (Optional)</label>
+                    <input type="text" class="inp" id="auto-clan" value="3087207343">
+                </div>
+                <div class="modal-foot" style="justify-content: space-between;">
+                    <button type="button" class="btn btn-danger" onclick="stopAutoManager()"><i class="fa-solid fa-stop"></i> Stop Auto</button>
+                    <button type="button" class="btn btn-solid" onclick="startAutoManager()"><i class="fa-solid fa-play"></i> Start Auto</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ADD ACCOUNT MODAL -->
+    <div class="modal-overlay" id="add-modal">
+        <div class="modal-card">
+            <div class="modal-head">
+                <h3>Add <em>New Account</em></h3>
+                <button class="modal-close" onclick="closeAddModal()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <form id="add-acc-form" onsubmit="submitAddAccount(event)">
+                    <div class="field">
+                        <label>Account Type</label>
+                        <select class="inp" id="acc-type" onchange="toggleFormType()">
+                            <option value="guest">Guest Account (UID + Password)</option>
+                            <option value="token">Access Token</option>
+                        </select>
+                    </div>
+                    <div id="guest-fields">
+                        <div class="field">
+                            <label>Guest UID</label>
+                            <input type="text" class="inp" id="acc-uid" placeholder="e.g. 7644913583">
+                        </div>
+                        <div class="field">
+                            <label>Guest Password / Secret</label>
+                            <input type="text" class="inp" id="acc-password" placeholder="e.g. ZERO_GRAVITY_4NM38">
+                        </div>
+                    </div>
+                    <div id="token-fields" style="display:none;">
+                        <div class="field">
+                            <label>Access Token</label>
+                            <textarea class="inp" id="acc-token" rows="3" placeholder="Paste access token here..."></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-foot">
+                        <button type="button" class="btn btn-ghost" onclick="closeAddModal()">Cancel</button>
+                        <button type="submit" class="btn btn-solid"><i class="fa-solid fa-plus"></i> Save &amp; Start</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ACCOUNT DETAIL MODAL -->
+    <div class="modal-overlay" id="detail-modal">
+        <div class="modal-card">
+            <div class="modal-head">
+                <h3>Account <em>Details</em></h3>
+                <button class="modal-close" onclick="closeDetailModal()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="detail-grid">
+                    <div class="detail-item">
+                        <label>Account Name</label>
+                        <div class="val" id="det-name">-</div>
+                    </div>
+                    <div class="detail-item">
+                        <label>Level</label>
+                        <div class="val" id="det-level">-</div>
+                    </div>
+                    <div class="detail-item">
+                        <label>Account UID</label>
+                        <div class="val" id="det-uid">-</div>
+                    </div>
+                    <div class="detail-item">
+                        <label>Bot UID (Auth)</label>
+                        <div class="val" id="det-auth-uid">-</div>
+                    </div>
+                    <div class="detail-item" style="grid-column: 1 / -1;">
+                        <label>Password</label>
+                        <div class="val pw" id="det-password">•••••••• <span class="pw-toggle" onclick="togglePasswordView(this)">Show</span></div>
+                    </div>
+                    <div class="detail-item">
+                        <label>Running Time</label>
+                        <div class="val" id="det-uptime">-</div>
+                    </div>
+                    <div class="detail-item">
+                        <label>Total EXP Gained</label>
+                        <div class="val" style="color: var(--sage)" id="det-gained-exp">+0</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let startTime = Date.now();
+        let cachedAccounts = []; // Store accounts globally for the modal
+        let currentEditUid = null;
+
+        // ---- Modals ----
+        function openAddModal() { document.getElementById('add-modal').classList.add('active'); }
+        function closeAddModal() { document.getElementById('add-modal').classList.remove('active'); }
+        
+        function openAutoModal() { document.getElementById('auto-modal').classList.add('active'); }
+        function closeAutoModal() { document.getElementById('auto-modal').classList.remove('active'); }
+        
+        function closeDetailModal() { document.getElementById('detail-modal').classList.remove('active'); currentEditUid = null; }
+
+        function toggleFormType() {
+            const type = document.getElementById('acc-type').value;
+            document.getElementById('guest-fields').style.display = type === 'guest' ? 'block' : 'none';
+            document.getElementById('token-fields').style.display = type === 'token' ? 'block' : 'none';
+        }
+
+        // ---- API Actions ----
+        async function startAutoManager() {
+            const count = parseInt(document.getElementById('auto-count').value) || 4;
+            const limit = parseInt(document.getElementById('auto-limit').value) || 50000;
+            const region = document.getElementById('auto-region').value;
+            const clan_id = document.getElementById('auto-clan').value.trim();
+
+            try {
+                const res = await fetch('/api/auto/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ count, exp_limit: limit, region, clan_id })
+                });
+                const data = await res.json();
+                if (data.ok) {
+                    alert('Auto Manager Started Successfully!');
+                    closeAutoModal();
+                    fetchStats();
+                } else {
+                    alert('Error: ' + (data.error || 'Unknown'));
+                }
+            } catch (err) { alert('Request failed: ' + err); }
+        }
+
+        async function stopAutoManager() {
+            if (!confirm('Are you sure you want to stop the Auto Manager and all accounts?')) return;
+            try {
+                const res = await fetch('/api/auto/stop', {
+                    method: 'POST'
+                });
+                const data = await res.json();
+                if (data.ok) {
+                    alert('Auto Manager Stopped.');
+                    closeAutoModal();
+                    fetchStats();
+                }
+            } catch (err) { alert('Request failed: ' + err); }
+        }
+
+        async function submitAddAccount(e) {
+            e.preventDefault();
+            const type = document.getElementById('acc-type').value;
+            let payload = {};
+            if (type === 'guest') {
+                const uid = document.getElementById('acc-uid').value.trim();
+                const password = document.getElementById('acc-password').value.trim();
+                if (!uid || !password) return alert('Please enter both UID and Password');
+                payload = { uid, password };
+            } else {
+                const token = document.getElementById('acc-token').value.trim();
+                if (!token) return alert('Please enter token');
+                payload = { token };
+            }
+
+            try {
+                const res = await fetch('/api/account/add', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (data.status === 'ok') {
+                    closeAddModal();
+                    document.getElementById('add-acc-form').reset();
+                    fetchStats();
+                } else {
+                    alert('Error adding account: ' + (data.error || 'Unknown'));
+                }
+            } catch (err) { alert('Request failed: ' + err); }
+        }
+
+        async function deleteAccount(uid, event) {
+            if(event) event.stopPropagation();
+            if (!confirm('Are you sure you want to remove account ' + uid + '?')) return;
+            try {
+                await fetch('/api/account/delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ uid })
+                });
+                fetchStats();
+            } catch (err) { console.error(err); }
+        }
+
+        async function refreshAccountInfo(uid, event) {
+            if(event) event.stopPropagation();
+            try {
+                await fetch('/api/account/refresh', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ uid })
+                });
+                fetchStats();
+            } catch (err) { console.error(err); }
+        }
+        
+        async function togglePause(uid, event) {
+            if(event) event.stopPropagation();
+            try {
+                await fetch('/api/account/pause', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ uid })
+                });
+                fetchStats();
+            } catch (err) { console.error(err); }
+        }
+
+        // ---- Detail Modal Functions ----
+        function openDetail(uid) {
+            const acc = cachedAccounts.find(a => a.uid === uid);
+            if (!acc) return;
+
+            currentEditUid = uid;
+
+            document.getElementById('det-name').innerText = acc.nickname || 'Unknown';
+            document.getElementById('det-level').innerText = acc.level || 1;
+            document.getElementById('det-uid').innerText = acc.uid;
+            document.getElementById('det-auth-uid').innerText = acc.auth_uid || 'N/A';
+            
+            // Password
+            const pwVal = acc.password || 'N/A';
+            document.getElementById('det-password').innerHTML = `•••••••• <span class="pw-toggle" onclick="togglePasswordView(this)" data-pw="${pwVal}">Show</span>`;
+            
+            // Uptime
+            const uptimeMins = Math.floor((acc.uptime_seconds || 0) / 60);
+            document.getElementById('det-uptime').innerText = `${uptimeMins} Mins`;
+            
+            // EXP
+            document.getElementById('det-gained-exp').innerText = `+${(acc.gained_exp || 0).toLocaleString()}`;
+
+            document.getElementById('detail-modal').classList.add('active');
+        }
+
+        function togglePasswordView(el) {
+            const pw = el.getAttribute('data-pw') || 'N/A';
+            if (el.innerText === 'Show') {
+                el.innerText = 'Hide';
+                el.parentElement.innerHTML = `${pw} <span class="pw-toggle" onclick="togglePasswordView(this)" data-pw="${pw}">Hide</span>`;
+            } else {
+                el.innerText = 'Show';
+                el.parentElement.innerHTML = `•••••••• <span class="pw-toggle" onclick="togglePasswordView(this)" data-pw="${pw}">Show</span>`;
+            }
+        }
+
+        // ---- Fetch & Render ----
+        async function fetchStats() {
+            try {
+                const res = await fetch('/api/stats');
+                const data = await res.json();
+                
+                cachedAccounts = data.accounts || []; // Cache for modal
+
+                document.getElementById('stat-total-accounts').innerText = data.total_accounts || 0;
+                document.getElementById('stat-total-exp').innerText = '+' + (data.total_gained_exp || 0).toLocaleString();
+                document.getElementById('stat-total-matches').innerText = data.total_matches || 0;
+                document.getElementById('acc-count').innerText = cachedAccounts.length + ' units';
+
+                // Auto Manager Badge & Settings
+                if (data.auto_config) {
+                    const badge = document.getElementById('auto-active-badge');
+                    if (data.auto_config.active) {
+                        badge.style.display = 'inline-flex';
+                        badge.style.background = 'var(--terra)';
+                        badge.innerText = 'AUTO RUNNING';
+                    } else {
+                        badge.style.display = 'none';
+                    }
+                    
+                    // Update form fields if not focused
+                    if (document.activeElement !== document.getElementById('auto-count')) {
+                        document.getElementById('auto-count').value = data.auto_config.target_count || 4;
+                    }
+                    if (document.activeElement !== document.getElementById('auto-limit')) {
+                        document.getElementById('auto-limit').value = data.auto_config.exp_limit || 50000;
+                    }
+                    if (document.activeElement !== document.getElementById('auto-region')) {
+                        document.getElementById('auto-region').value = data.auto_config.region || 'BD';
+                    }
+                    if (document.activeElement !== document.getElementById('auto-clan')) {
+                        document.getElementById('auto-clan').value = data.auto_config.clan || '';
+                    }
+                }
+
+                const container = document.getElementById('accounts-container');
+                if (cachedAccounts.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty">
+                            <div class="empty-icon"><i class="fa-solid fa-seedling"></i></div>
+                            <h4>No active accounts</h4>
+                            <p>Click "Add Account" or use "Auto Manager" to deploy bots</p>
+                        </div>
+                    `;
+                } else {
+                    container.innerHTML = cachedAccounts.map(acc => {
+                        const gainedExp = acc.gained_exp || 0;
+                        const status = acc.status || 'ONLINE';
+                        let statusClass = 'online';
+                        let statusText = 'Online';
+                        
+                        if (status === 'IN_MATCH') {
+                            statusClass = 'match';
+                            statusText = `In Match · ${acc.active_matches || 1}`;
+                        } else if (status === 'LIMIT') {
+                            statusClass = 'limit';
+                            statusText = 'Limit Reached';
+                        } else if (status === 'PAUSED') {
+                            statusClass = 'limit';
+                            statusText = 'Paused';
+                        }
+                        const fillPct = Math.min(100, Math.max(8, (acc.current_exp % 1000) / 10));
+                        const initial = (acc.nickname || 'A').charAt(0).toUpperCase();
+
+                        // onclick="openDetail('${acc.uid}')" added to card
+                        return `
+                            <div class="acc" onclick="openDetail('${acc.uid}')">
+                                <div class="acc-head">
+                                    <div class="acc-id-group">
+                                        <div class="acc-avatar">${initial}</div>
+                                        <div class="acc-info">
+                                            <div class="acc-name">
+                                                ${escapeHtml(acc.nickname)}
+                                                <span class="acc-region">${acc.region || 'BD'}</span>
+                                            </div>
+                                            <div class="acc-uid">UID · ${acc.uid}</div>
+                                        </div>
+                                    </div>
+                                    <div class="acc-status ${statusClass}">
+                                        <span class="status-dot"></span>
+                                        <span>${statusText}</span>
+                                    </div>
+                                </div>
+
+                                <div class="acc-exp">
+                                    <div class="exp-cell">
+                                        <div class="exp-lbl">Initial</div>
+                                        <div class="exp-val">${(acc.initial_exp || 0).toLocaleString()}</div>
+                                    </div>
+                                    <div class="exp-cell">
+                                        <div class="exp-lbl">Current</div>
+                                        <div class="exp-val">${(acc.current_exp || 0).toLocaleString()}</div>
+                                    </div>
+                                    <div class="exp-cell">
+                                        <div class="exp-lbl">Gained</div>
+                                        <div class="exp-val gained"><span class="plus">+</span>${gainedExp.toLocaleString()}</div>
+                                    </div>
+                                </div>
+
+                                <div class="acc-level">
+                                    <div class="level-header">
+                                        <span class="level-lvl"><span>Level</span>${acc.level || 1}</span>
+                                        <span class="level-matches">${acc.matches_played || 0} matches</span>
+                                    </div>
+                                    <div class="level-track">
+                                        <div class="level-fill" style="width:${fillPct}%"></div>
+                                    </div>
+                                </div>
+
+                                <div class="acc-foot">
+                                    <span class="last-match">Last · <b>${acc.last_match_time || 'Running...'}</b></span>
+                                    <div class="actions">
+                                        <button class="act-btn" title="Pause/Resume" onclick="togglePause('${acc.uid}', event)"><i class="fa-solid fa-pause"></i></button>
+                                        <button class="act-btn" title="Refresh Profile/EXP" onclick="refreshAccountInfo('${acc.uid}', event)"><i class="fa-solid fa-rotate"></i></button>
+                                        <button class="act-btn del" title="Delete Account" onclick="deleteAccount('${acc.uid}', event)"><i class="fa-solid fa-trash"></i></button>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                }
+
+                const logContainer = document.getElementById('log-stream');
+                if (data.logs) {
+                    logContainer.innerHTML = data.logs.map(log => {
+                        return `<div class="log-item"><span class="log-time">[${log.time}]</span><span class="log-${log.level}">${escapeHtml(log.message)}</span></div>`;
+                    }).join('');
+                    logContainer.scrollTop = logContainer.scrollHeight;
+                }
+
+            } catch (err) {
+                console.error("Failed to fetch stats:", err);
+            }
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        setInterval(() => {
+            const sec = Math.floor((Date.now() - startTime) / 1000);
+            const h = String(Math.floor(sec / 3600)).padStart(2, '0');
+            const m = String(Math.floor((sec % 3600) / 60)).padStart(2, '0');
+            const s = String(sec % 60).padStart(2, '0');
+            document.getElementById('stat-uptime').innerText = `${h}:${m}:${s}`;
+        }, 1000);
+
+        fetchStats();
+        setInterval(fetchStats, 2500);
+    </script>
+</body>
+</html>
